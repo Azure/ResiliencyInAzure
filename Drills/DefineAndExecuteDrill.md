@@ -77,9 +77,13 @@ Similarly, double-click details and edits on Identity and Permissions can be don
     1. Resources of the Service Group that have a native zonal resiliency solution are included in the drill by default. These are resources that will qualify for fault injection. 
     2. If the Service Group has resources such as Virtual Machines configured with Azure Site Recovery that require manual failover, a Recovery Plan needs to be associated with the Service Group to failover the resources in the desired order of recovery post fault injection.
     3. The reason why a resource is excluded from the drill can be varied. Some of the common reasons include the lack of a native zonal resiliency solution, resource excluded from recovery plan, the service does not support the detection of zonal resiliency solution for this resource type etc.
-![Screenshot of Drill resource exclude page](../img/50-Drill-Exclude.png)
+    
+    ![Screenshot of Drill resource exclude page](../img/50-Drill-Exclude.png)
+    
     4. Any resource that is excluded by default from the drill can be included back by clicking on “View details and include resources” as shown below. Ensure that you click on “Refresh” upon including resources back to the drill to see the updated list:
-![Screenshot of Drill Resource Review](../img/30-Drill-Resources.png)
+
+    ![Screenshot of Drill Resource Review](../img/30-Drill-Resources.png)
+
 8. Upon confirming the list of resources to be included in the drill, proceed to the Fault Designer tab to review the faults that need to be applied to the resources. Select any resource and click on "Edit fault" for the same. 
 
     ![Screenshot of Drill Fault Designer](../img/31-Drill-Fault-Designer.png.jpg)
