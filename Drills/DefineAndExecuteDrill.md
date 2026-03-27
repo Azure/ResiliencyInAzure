@@ -14,13 +14,15 @@ Additionally, integration with metrics monitoring helps measure the health of th
 
 2. In addition, you will need to have a recovery plan setup for your service group. Refer to the [recovery plan tutorial](../Recovery%20plan/CreateAndExecuteRecoveryPlan.md) for instructions to create a recovery plan.
 
-3. In addition, ensure that the **Chaos Studio Resource Provider** is registered in the subscription where the Chaos Experiment will be created. If it is not already registered, follow these steps:
+3. Ensure that the **Chaos Studio Resource Provider** is registered in the subscription where the Chaos Experiment will be created. If it is not already registered, follow these steps:
    - Navigate to the **Subscription** view in the Azure portal.
    - Search for **Microsoft.Chaos** in the Resource Providers section.
    - Select and register the provider.
    - Allow 15–20 minutes for the registration to complete before proceeding with drill creation.
 
 ![Chaos Registration Step](../img/42-Chaos-Reg.png)
+
+4. Similarly, ensure that the **Microsoft.Insights** and **Microsoft.OperationalInsights** resource providers are registered in the subscription where you wish to create the monitoring setup for drills.
 
 ## Drill Setup
 
@@ -63,18 +65,21 @@ To define a Zone Down simulation drill, follow the steps below:
 
 5. Upon confirmation, the Drill instance gets created. Note that every Service Group can be associated with a single Drill instance.
 
-6. Upon creation, review the summary widgets on the Overview page that explain the Drill parameters that need fixing in order to proceed with execution of the Drill. Similarly, double-click details and edits on Identity and Permissions can be done using the dedicated blade on the left navigation.
+6. Upon creation, review the summary widgets on the Overview page that explain the Drill parameters that need fixing in order to proceed with execution of the Drill.
 
-    ![Screenshot of Drill MSI updation](../img/29-Drill-Identity-Change.png.jpg)
+![Screenshot of Drill details](../img/48-Drill-Identity-1.png)
+
+Similarly, double-click details and edits on Identity and Permissions can be done using the dedicated blade on the left navigation.
+
+![Screenshot of Drill MSI updation](../img/49-Drill-Identity-2.png)
 
 7. Next, proceed to review the resources that are included in the Drill. Key points on the resources included in a drill: 
     1. Resources of the Service Group that have a native zonal resiliency solution are included in the drill by default. These are resources that will qualify for fault injection. 
     2. If the Service Group has resources such as Virtual Machines configured with Azure Site Recovery that require manual failover, a Recovery Plan needs to be associated with the Service Group to failover the resources in the desired order of recovery post fault injection.
     3. The reason why a resource is excluded from the drill can be varied. Some of the common reasons include the lack of a native zonal resiliency solution, resource excluded from recovery plan, the service does not support the detection of zonal resiliency solution for this resource type etc.
+![Screenshot of Drill resource exclude page](../img/50-Drill-Exclude.png)
     4. Any resource that is excluded by default from the drill can be included back by clicking on “View details and include resources” as shown below. Ensure that you click on “Refresh” upon including resources back to the drill to see the updated list:
-
-    ![Screenshot of Drill Resource Review](../img/30-Drill-Resources.png)
-
+![Screenshot of Drill Resource Review](../img/30-Drill-Resources.png)
 8. Upon confirming the list of resources to be included in the drill, proceed to the Fault Designer tab to review the faults that need to be applied to the resources. Select any resource and click on "Edit fault" for the same. 
 
     ![Screenshot of Drill Fault Designer](../img/31-Drill-Fault-Designer.png.jpg)
@@ -93,12 +98,11 @@ To define a Zone Down simulation drill, follow the steps below:
     > [!TIP]
         > For unsupported resource types, use custom scripts powered by Azure Runbooks to define fault logic. Ensure scripts include the following parameters:
         >
-        > - `ResourceIds` (string): Comma-separated list of Azure Resource IDs.
+        > - 'ResourceIds' (string): Comma-separated list of Azure Resource IDs.
         >
-        > - `Duration` (int): Duration in minutes.
+        > - 'Duration' (int): Duration in minutes.
         >
-        > - `TargetZone` (string): Target zone (e.g., az1, az2, az3).
-        The current implementation of custom scripts infra do not support individual resource level response schema (i.e. if the script fails, we cannot detect which resources within it failed). Only if custom Scripts adhere to this response schema, will the service be able to get resource level failure details. Otherwise, all resources acted on by this script will be marked as failed if the script fails:
+        > - 'TargetZone' (string): Target zone (e.g., az1, az2, az3). <br> The current implementation of custom scripts infra do not support individual resource level response schema (i.e. if the script fails, we cannot detect which resources within it failed). Only if custom Scripts adhere to this response schema, will the service be able to get resource level failure details. Otherwise, all resources acted on by this script will be marked as failed if the script fails:
 
         ````json
         {
