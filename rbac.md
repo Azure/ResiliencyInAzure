@@ -31,4 +31,5 @@ The following table lists the RBAC roles that can be leveraged by users to achie
 
 | Scenario | Roles |
 |----------|--------------------------|
-| Create/Update/Execute Drills |  1. **SG Drill Contributor** on the **Service Group** <br> 2. **Drill Assets Contributor** on the **subscription** associated with Automation Account and Chaos experiment <br> 3. **Drill Resource Fault Contributor** on the **resources** on which fault injection should be performed.
+| Create/Update/Execute Drills |  1. **SG Drill Contributor** on the **Service Group** <br> 2. **Drill Assets Contributor** on the **subscription** associated with Automation Account and Chaos experiment <br> 3. **Drill Resource Fault Contributor** on the **resources** on which fault injection should be performed.|
+| Monitor Service Group metrics health during drill execution |  1. **Log Analytics Contributor + Monitoring Contributor** in the chosen subscription → for creating the monitoring infrastructure (Log analytics workspace, tables, Data Collection Endpoints (DCE), Data Collection Rules (DCR))  <br> 2. **User Access Administrator** → for assigning roles on the Log Analytics subscription and on each of the drill resources’ subscriptions. |
