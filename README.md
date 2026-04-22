@@ -13,6 +13,10 @@ With this tool, you can:
 
 Sign up for the preview via [this form](https://forms.office.com/r/hzN515nbM9). You will receive an email notification once you are enrolled for the preview.
 
+## Use preview portal URL
+
+Once enrolled, you will need to use the following preview portal URL: https://aka.ms/resiliencyInAzure/gatedPreview to acess the capabilities in this preview.
+
 ## Get started
 
 Use the below quick links to start testing out various scenarios that are part of the preview. It is recommended to start with the 'Review pre-requisites' page. Each page has a 'Next step' section that will help you sequentially navigate through the remaining sections of the documentation and try out each scenario.
