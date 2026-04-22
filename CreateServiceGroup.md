@@ -2,6 +2,10 @@
 
 Azure Service Groups offer a flexible way to organize and manage resources across subscriptions and resource groups, parallel to any existing Azure resource hierarchy. They're ideal for scenarios requiring cross-boundary grouping, minimal permissions, and aggregations of data across resources. These features empower teams to create tailored resource collections that align with operational, organizational, or persona-based needs.
 
+> [!TIP]
+> To ease the process of creating service groups, assigning goals and getting resiliency reports, we now provide a script that you can run to automate these processes. You can find the script [here](https://github.com/adityabalaji-msft/ResiliencyReportGenerator). Please note that you will need your tenant enrolled as well as the prerequisite steps listed in [this article](Prerequisites.md) to be completed, before running the script.  
+
+
 ## Overview
 
 Key capabilities of service groups include:

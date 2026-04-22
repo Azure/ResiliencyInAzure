@@ -107,7 +107,6 @@ Similarly, double-click details and edits on Identity and Permissions can be don
         > - 'Duration' (int): Duration in minutes.
         >
         > - 'TargetZone' (string): Target zone (e.g., az1, az2, az3). <br> The current implementation of custom scripts infra do not support individual resource level response schema (i.e. if the script fails, we cannot detect which resources within it failed). Only if custom Scripts adhere to this response schema, will the service be able to get resource level failure details. Otherwise, all resources acted on by this script will be marked as failed if the script fails:
-
         ````json
         {
           "Status": "Failed",
@@ -136,7 +135,6 @@ Similarly, double-click details and edits on Identity and Permissions can be don
           "GlobalError": "All PostgreSQL failover operations failed."
         }
         ````
-
     Note that faults can be applied in bulk for a given resource type by selecting the resource type and clicking on "Edit fault".
 
 ![Screenshot of custom fault selection](../img/32-Drill-Custom-Fault-Injection.png)
