@@ -495,6 +495,3 @@ Contoso is a financial-services firm running an insurance claims-processing appl
 | Zone-Down Drills | [learn.microsoft.com/azure/resiliency/availability-zone-down-drills-about](https://learn.microsoft.com/azure/resiliency/availability-zone-down-drills-about) |
 | Recovery Plans | [learn.microsoft.com/azure/resiliency/recovery-orchestration-plan-about](https://learn.microsoft.com/azure/resiliency/recovery-orchestration-plan-about) |
 | What's New in Resiliency | [learn.microsoft.com/azure/resiliency/resiliency-whats-new](https://learn.microsoft.com/azure/resiliency/resiliency-whats-new) |
-| Demo Environment Guide | [github.com/adityabalaji-msft/IRMDemoEnvironmentGuide](https://github.com/adityabalaji-msft/IRMDemoEnvironmentGuide) |
-
-
