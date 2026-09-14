@@ -269,6 +269,8 @@ Contoso is a financial-services firm running an insurance claims-processing appl
 
 **Objective:** Review and understand recommendations surfaced by IRM for your service group.
 
+> **Note:** If recommendations are taking too long to populate, you may skip this exercise and move directly to **Exercise 3.3** to resolve resiliency issues using Copilot.
+
 #### Task 1: Review recommendations with cost indicators
 
 1. From your service group `ContosoClaimsApp-Lab`, navigate to the **Recommendations** tab.
