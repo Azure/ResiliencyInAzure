@@ -1,0 +1,28 @@
+{
+  "serviceGroup": {
+    "id": "sample-service-group",
+    "displayName": "Sample Service Group",
+    "parentResourceId": null
+  },
+  "resources": [
+    "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/sample-rg/providers/Microsoft.Compute/virtualMachines/sample-vm"
+  ],
+  "usagePlan": {
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "resourceGroupName": "sample-irm-rg",
+    "name": "sample-standard-plan",
+    "location": "global"
+  },
+  "enrollment": {
+    "name": "sample-enrollment"
+  },
+  "goalAssignment": {
+    "name": "sample-zonal-goal"
+  },
+  "drill": {
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "resourceGroupName": "sample-irm-rg",
+    "name": "sample-zone-down-drill",
+    "location": "eastus"
+  }
+}
