@@ -29,6 +29,12 @@ param(
     [ValidateRange(1, 300)]
     [int]$MaximumPollDelaySeconds = 30,
 
+    [ValidateRange(0, 10)]
+    [int]$AuthorizationRetryCount = 6,
+
+    [ValidateRange(1, 300)]
+    [int]$AuthorizationRetryDelaySeconds = 10,
+
     [string]$OutputPath
 )
 
@@ -40,7 +46,7 @@ $script:ApiVersions = @{
     Membership    = '2023-09-01-preview'
     UsagePlan     = '2026-08-31-preview'
     Enrollment    = '2026-08-31-preview'
-    GoalAssignment = '2026-09-30-preview'
+    GoalAssignment = '2026-08-31-preview'
     Drill         = '2026-06-01-preview'
     ResourceGroup = '2021-04-01'
     Subscription  = '2020-01-01'
@@ -110,12 +116,66 @@ function Get-ArmErrorDetail {
     }
 }
 
+function ConvertTo-ArmErrorDetailsJson {
+    [CmdletBinding()]
+    param([AllowNull()]$Details)
+    if ($null -eq $Details) { return '[]' }
+    $items = @($Details)
+    if ($items.Count -eq 0) { return '[]' }
+    return ($items | ConvertTo-Json -Depth 20 -Compress)
+}
+
 function Add-ApiVersion {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Path, [AllowNull()][string]$ApiVersion)
     if ([string]::IsNullOrWhiteSpace($ApiVersion) -or $Path -match '(?i)[?&]api-version=') { return $Path }
     $separator = if ($Path.Contains('?')) { '&' } else { '?' }
     return "$Path${separator}api-version=$([uri]::EscapeDataString($ApiVersion))"
+}
+
+function Get-ArmRequestTarget {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$RequestPath)
+    if ($RequestPath -notmatch '^https://') { return @{ Path = $RequestPath } }
+    $requestUri = [uri]$RequestPath
+    $resourceManagerUri = [uri]$script:AzContext.Environment.ResourceManagerUrl
+    if ($requestUri.Authority -ine $resourceManagerUri.Authority) {
+        throw "ARM operation URL host '$($requestUri.Authority)' does not match the active environment host '$($resourceManagerUri.Authority)'."
+    }
+    return @{ Uri = $requestUri.AbsoluteUri }
+}
+
+function Invoke-ArmWebRequest {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Method,
+        [Parameter(Mandatory)][string]$RequestPath,
+        [AllowNull()][string]$Payload,
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Headers
+    )
+    $target = Get-ArmRequestTarget -RequestPath $RequestPath
+    $uri = if ($target.ContainsKey('Uri')) {
+        [uri]$target.Uri
+    }
+    else {
+        [uri]"$([string]$script:AzContext.Environment.ResourceManagerUrl.TrimEnd('/'))/$($target.Path.TrimStart('/'))"
+    }
+    $accessToken = Get-AzAccessToken -ResourceUrl $script:AzContext.Environment.ResourceManagerUrl -DefaultProfile $script:AzContext -AsSecureString
+    if ($null -eq $accessToken -or $null -eq $accessToken.Token) { throw 'Unable to acquire an Azure Resource Manager access token.' }
+    $arguments = @{
+        Uri = $uri
+        Method = $Method
+        Headers = $Headers
+        Authentication = 'Bearer'
+        Token = $accessToken.Token
+        SkipHttpErrorCheck = $true
+        ErrorAction = 'Stop'
+    }
+    if ($null -ne $Payload) {
+        $arguments.Body = $Payload
+        $arguments.ContentType = 'application/json'
+    }
+    Invoke-WebRequest @arguments
 }
 
 function Invoke-ArmRequest {
@@ -126,16 +186,25 @@ function Invoke-ArmRequest {
         [AllowNull()][string]$ApiVersion,
         [AllowNull()]$Body,
         [switch]$AllowNotFound,
-        [ValidateRange(0, 10)][int]$RetryCount = 3
+        [ValidateRange(0, 10)][int]$RetryCount = 3,
+        [AllowNull()][System.Collections.IDictionary]$RequestHeaders
     )
     $requestPath = Add-ApiVersion -Path $Path -ApiVersion $ApiVersion
     Write-Verbose "ARM $Method $($requestPath -replace '(?i)(sig|token|code)=[^&]+', '$1=REDACTED')"
     $payload = if ($null -ne $Body) { $Body | ConvertTo-Json -Depth 100 -Compress } else { $null }
-    for ($attempt = 0; $attempt -le $RetryCount; $attempt++) {
+    $maximumAttempt = [math]::Max($RetryCount, $AuthorizationRetryCount)
+    for ($attempt = 0; $attempt -le $maximumAttempt; $attempt++) {
         try {
-            $arguments = @{ Method = $Method; Path = $requestPath; DefaultProfile = $script:AzContext }
+            $arguments = @{ Method = $Method; DefaultProfile = $script:AzContext }
+            $target = Get-ArmRequestTarget -RequestPath $requestPath
+            foreach ($entry in $target.GetEnumerator()) { $arguments[$entry.Key] = $entry.Value }
             if ($null -ne $payload) { $arguments.Payload = $payload }
-            $raw = Invoke-AzRestMethod @arguments
+            $raw = if ($RequestHeaders -and $RequestHeaders.Count) {
+                Invoke-ArmWebRequest -Method $Method -RequestPath $requestPath -Payload $payload -Headers $RequestHeaders
+            }
+            else {
+                Invoke-AzRestMethod @arguments
+            }
             $statusCode = [int]$raw.StatusCode
             $responseBody = ConvertFrom-ArmContent -Content $raw.Content
             if ($statusCode -eq 404 -and $AllowNotFound) {
@@ -145,6 +214,12 @@ function Invoke-ArmRequest {
                 return [pscustomobject]@{ StatusCode = $statusCode; Body = $responseBody; Headers = $raw.Headers; NotFound = $false; Path = $requestPath }
             }
             $detail = Get-ArmErrorDetail -Body $responseBody -Headers $raw.Headers -StatusCode $statusCode
+            if ($statusCode -eq 403 -and $detail.Code -ieq 'AuthorizationFailed' -and $attempt -lt $AuthorizationRetryCount) {
+                $delay = [math]::Min(60, $AuthorizationRetryDelaySeconds * [math]::Pow(2, $attempt))
+                Write-Warning "ARM authorization has not propagated or access is insufficient; retrying in $delay second(s) (attempt $($attempt + 1) of $AuthorizationRetryCount)."
+                Start-Sleep -Seconds $delay
+                continue
+            }
             if ($statusCode -in 408, 429, 500, 502, 503, 504 -and $attempt -lt $RetryCount) {
                 $retryAfter = Get-ResponseHeader -Headers $raw.Headers -Name @('Retry-After')
                 $delay = if ($retryAfter -match '^\d+$') { [int]$retryAfter } else { [math]::Min(30, [math]::Pow(2, $attempt + 1)) }
@@ -152,7 +227,11 @@ function Invoke-ArmRequest {
                 Start-Sleep -Seconds $delay
                 continue
             }
-            throw "ARM $Method failed: HTTP $statusCode; code=$($detail.Code); message=$($detail.Message); target=$($detail.Target); requestId=$($detail.CorrelationId)"
+            $details = ConvertTo-ArmErrorDetailsJson -Details $detail.Details
+            if ($statusCode -eq 403 -and $detail.Code -ieq 'AuthorizationFailed') {
+                throw "ARM $Method failed after $($attempt + 1) authorization attempt(s): HTTP $statusCode; code=$($detail.Code); message=$($detail.Message); target=$($detail.Target); details=$details; requestId=$($detail.CorrelationId). RBAC propagation may still be pending; verify the role assignment and refresh the Azure context before retrying."
+            }
+            throw "ARM $Method failed: HTTP $statusCode; code=$($detail.Code); message=$($detail.Message); target=$($detail.Target); details=$details; requestId=$($detail.CorrelationId)"
         }
         catch {
             if ($attempt -lt $RetryCount -and $_.Exception.Message -match '(?i)timeout|temporar|connection|429|50[0234]') {
@@ -187,7 +266,7 @@ function Wait-ArmOperation {
             $detail = Get-ArmErrorDetail -Body $response.Body -Headers $response.Headers -StatusCode $response.StatusCode
             throw "ARM operation ${state}: code=$($detail.Code); message=$($detail.Message); target=$($detail.Target); requestId=$($detail.CorrelationId)"
         }
-        if ($state -notin @('InProgress', 'Running', 'Accepted', 'Creating', 'Updating')) { throw "ARM operation returned unknown state '$state'." }
+        if ($state -notin @('InProgress', 'Running', 'Accepted', 'Creating', 'Updating', 'Provisioning')) { throw "ARM operation returned unknown state '$state'." }
         $retryAfter = Get-ResponseHeader -Headers $response.Headers -Name @('Retry-After')
         $sleepSeconds = if ($retryAfter -match '^\d+$') { [math]::Min($MaximumDelaySeconds, [int]$retryAfter) } else { $delay }
         Start-Sleep -Seconds $sleepSeconds
@@ -281,7 +360,8 @@ function Invoke-VerifiedPut {
     Wait-ArmOperation -Headers $response.Headers | Out-Null
     $verified = Get-ArmResource -ResourceId $ResourceId -ApiVersion $ApiVersion
     if ($verified.Body.properties.provisioningState -in @('Failed', 'Canceled', 'Cancelled')) { throw "Verification GET returned provisioningState '$($verified.Body.properties.provisioningState)'." }
-    return if ($response.StatusCode -eq 201) { 'Created' } else { 'Updated' }
+    if ($response.StatusCode -eq 201) { return 'Created' }
+    return 'Updated'
 }
 
 function Invoke-ServiceGroupStage {
@@ -434,9 +514,9 @@ function Invoke-GoalAssignmentStage {
     Assert-Prerequisite (Test-ArmResourceExists $ServiceGroupResourceId $script:ApiVersions.ServiceGroup) "Service Group '$ServiceGroupResourceId' does not exist."
     $id = "$ServiceGroupResourceId/providers/Microsoft.AzureResilienceManagement/goalAssignments/$([uri]::EscapeDataString($Config.goalAssignment.name))"
     $existing = Get-ArmResource $id $script:ApiVersions.GoalAssignment -AllowNotFound
-    if (-not $existing.NotFound -and $existing.Body.properties.requireZonalResiliency -eq $true -and $existing.Body.properties.requireRegionalResiliency -ne $true) { return New-StageResult GoalAssignment Succeeded $id Reused $started $null }
+    if (-not $existing.NotFound -and $existing.Body.properties.requireZonalResiliency -eq $true) { return New-StageResult GoalAssignment Succeeded $id Reused $started $null }
     if (-not $existing.NotFound -and -not $Force) { throw 'Existing Goal Assignment is not a zonal-only resiliency assignment. Use -Force to update script-owned intent.' }
-    $outcome = Invoke-VerifiedPut $id $script:ApiVersions.GoalAssignment @{ properties = @{ requireZonalResiliency = $true; requireRegionalResiliency = $false } } 'Create zonal resiliency Goal Assignment' -WhatIf:$WhatIfPreference
+    $outcome = Invoke-VerifiedPut $id $script:ApiVersions.GoalAssignment @{ properties = @{ requireZonalResiliency = $true } } 'Create zonal resiliency Goal Assignment' -WhatIf:$WhatIfPreference
     New-StageResult GoalAssignment Succeeded $id $outcome $started $null
 }
 
@@ -450,17 +530,46 @@ function Invoke-DrillStage {
         if ([string]$existing.Body.properties.serviceGroupId -and [string]$existing.Body.properties.serviceGroupId -ine $ServiceGroupResourceId) { throw 'Existing drill is associated with a different Service Group.' }
         if ([string]$existing.Body.properties.drillType -ine 'Zonal') { throw 'Existing drill is not a Zonal drill.' }
         if ([string]$existing.Body.identity.type -notmatch 'SystemAssigned') { throw 'Existing drill does not use a system-assigned managed identity.' }
-        return New-StageResult Drill Succeeded $id Reused $started $null
+        if ([string]$existing.Body.properties.provisioningState -notin @('Failed', 'Canceled', 'Cancelled')) {
+            return New-StageResult Drill Succeeded $id Reused $started $null
+        }
+        Write-Warning "Retrying drill '$id' because its provisioning state is '$($existing.Body.properties.provisioningState)'."
     }
-    $body = @{ identity = @{ type = 'SystemAssigned' }; properties = @{ drillType = 'Zonal'; rbacSetupMode = 'Manual'; drillAssetProperties = @{ subscription = [string]$drill.subscriptionId; region = [string]$drill.location; resourceGroup = [string]$drill.resourceGroupName } } }
+    $systemAssignedIdentity = @{ type = 'SystemAssigned' }
+    $body = @{
+        identity = $systemAssignedIdentity
+        properties = @{
+            drillType = 'Zonal'
+            rbacSetupMode = 'Manual'
+            drillAssetProperties = @{
+                subscription = [string]$drill.subscriptionId
+                region = [string]$drill.location
+                resourceGroup = [string]$drill.resourceGroupName
+            }
+            chaosResourceProperties = @{
+                identity = $systemAssignedIdentity
+                chaosResourceIdentityForFaults = $systemAssignedIdentity
+            }
+            recoveryPlanProperties = @{ identity = $systemAssignedIdentity }
+            monitoringProperties = @{ identity = $systemAssignedIdentity }
+        }
+    }
     $outcome = Invoke-VerifiedPut $id $script:ApiVersions.Drill $body 'Create zonal drill (does not execute it)' -WhatIf:$WhatIfPreference
     New-StageResult Drill Succeeded $id $outcome $started $null
 }
 
 function Get-AllArmPages {
     param([string]$Path, [string]$ApiVersion)
-    $items = [Collections.Generic.List[object]]::new(); $next = Add-ApiVersion $Path $ApiVersion
-    while ($next) { $response = Invoke-ArmRequest GET $next $null; foreach ($item in @($response.Body.value)) { $items.Add($item) }; $next = [string]$response.Body.nextLink }
+    $items = [Collections.Generic.List[object]]::new()
+    $next = Add-ApiVersion $Path $ApiVersion
+    while ($next) {
+        $response = Invoke-ArmRequest GET $next $null
+        $valueProperty = if ($null -ne $response.Body) { $response.Body.PSObject.Properties['value'] } else { $null }
+        if ($null -eq $valueProperty) { throw "ARM list response for '$next' does not contain a value collection." }
+        foreach ($item in @($valueProperty.Value)) { $items.Add($item) }
+        $nextLinkProperty = $response.Body.PSObject.Properties['nextLink']
+        $next = if ($null -ne $nextLinkProperty) { [string]$nextLinkProperty.Value } else { $null }
+    }
     return @($items)
 }
 
@@ -478,7 +587,8 @@ function Invoke-DrillResourcesStage {
     $exclude = @($classifications | Where-Object { $_.Status -eq 'Excluded' -and $_.DrillResourceId } | ForEach-Object { $_.DrillResourceId })
     $body = @{ faultDurationInMin = 0; forceInclusionAndUpdate = 'Disable'; resourceLists = @{ includeResources = $include; excludeResources = $exclude; updateResources = @() } }
     if ($PSCmdlet.ShouldProcess($DrillResourceId, 'Converge drill resource inclusion and native default faults')) {
-        $response = Invoke-ArmRequest POST "$DrillResourceId/addOrUpdateResources" $script:ApiVersions.Drill $body
+        $requestHeaders = @{ 'operation-id' = [guid]::NewGuid().ToString('D') }
+        $response = Invoke-ArmRequest -Method POST -Path "$DrillResourceId/addOrUpdateResources" -ApiVersion $script:ApiVersions.Drill -Body $body -RequestHeaders $requestHeaders
         Wait-ArmOperation $response.Headers | Out-Null
         $verified = Get-AllArmPages "$DrillResourceId/drillResources" $script:ApiVersions.Drill
         $verifiedById = @{}; foreach ($item in $verified) { $verifiedById[[string]$item.id.ToLowerInvariant()] = $item }
