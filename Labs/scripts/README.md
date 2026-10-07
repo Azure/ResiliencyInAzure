@@ -1,6 +1,6 @@
 # Infrastructure Resiliency Manager Service Group onboarding
 
-`Deploy-IrmServiceGroup.ps1` is a PowerShell 7 workflow for idempotent onboarding of an Azure Service Group to Infrastructure Resiliency Manager (IRM). It supports complete and stage-bounded runs, ARM long-running operations, `-WhatIf`, deterministic memberships, and JSON summaries.
+`Deploy-IrmServiceGroup.ps1` is a PowerShell 7 workflow for idempotent onboarding of an Azure Service Group to Infrastructure Resiliency Manager (IRM) through Drill creation. It supports stage-bounded runs, ARM long-running operations, `-WhatIf`, deterministic memberships, and JSON summaries.
 
 > All APIs used by this workflow are preview APIs. Validate contracts in a non-production tenant before adoption.
 
@@ -20,7 +20,7 @@ Install-Module Az.Accounts, Az.Resources -Scope CurrentUser
 Connect-AzAccount -Tenant '<tenant-guid>'
 ```
 
-The caller needs the read/write/action permissions represented by the operations in the table below at their respective scopes. It also needs read access to all members and permission to create `Microsoft.Relationships/serviceGroupMember` relationships on them. Drill identity RBAC is intentionally not assigned by this script: the drill uses `rbacSetupMode = Manual`. Grant the generated system-assigned principal the roles required by the current IRM drill documentation before execution. `-RegisterMissingProviders` explicitly permits provider registration; there is no implicit registration or role assignment.
+The caller needs the read/write/action permissions represented by the operations in the table below at their respective scopes. It also needs read access to all members and permission to create `Microsoft.Relationships/serviceGroupMember` relationships on them. `-RegisterMissingProviders` explicitly permits provider registration; there is no implicit role assignment.
 
 ## Configuration
 
@@ -32,16 +32,19 @@ Copy and edit `parameters.sample.json`. Names are URI-escaped and validated; sub
 | `resources` | Array of full ARM resource IDs. |
 | `usagePlan` | `subscriptionId`, existing `resourceGroupName`, `name`, and `location`. The official example uses `global`, which is why the sample differs from the original illustrative `eastus`. |
 | `enrollment` | Nested enrollment `name`. |
-| `goalAssignment` | Tenant-scoped assignment `name`. API `2026-09-30-preview` removed the goal-template dependency; the request sets zonal intent directly. |
+| `goalAssignment` | Tenant-scoped assignment `name`. API `2026-08-31-preview` sets `requireZonalResiliency` directly on the assignment. `requireRegionalResiliency` isn't supported by this API version. |
 | `drill` | Asset `subscriptionId`, existing `resourceGroupName`, drill `name`, and asset `location`. The drill itself is tenant-scoped below the Service Group. |
 
 ## Run
 
-Complete workflow:
+Supported scripted workflow through Drill creation:
 
 ```powershell
-./Deploy-IrmServiceGroup.ps1 -ParameterFile ./parameters.json -Verbose
+./Deploy-IrmServiceGroup.ps1 -ParameterFile ./parameters.json -StopAfterStage Drill -Verbose
 ```
+
+> [!IMPORTANT]
+> Use the script only through the `Drill` stage. After the drill is created, open it in the Azure portal and add the relevant resources there. The portal workflow automatically creates the role assignments required for the selected resources. Do not use the script's `DrillResources` stage for user onboarding.
 
 Service Group only:
 
@@ -58,16 +61,16 @@ Through Usage Plan:
 Resume at goal assignment:
 
 ```powershell
-./Deploy-IrmServiceGroup.ps1 -ParameterFile ./parameters.json -StartAtStage GoalAssignment -StopAfterStage DrillResources
+./Deploy-IrmServiceGroup.ps1 -ParameterFile ./parameters.json -StartAtStage GoalAssignment -StopAfterStage Drill
 ```
 
 Preview changes and write no resources:
 
 ```powershell
-./Deploy-IrmServiceGroup.ps1 -ParameterFile ./parameters.json -WhatIf -Verbose
+./Deploy-IrmServiceGroup.ps1 -ParameterFile ./parameters.json -StopAfterStage Drill -WhatIf -Verbose
 ```
 
-Use `-CreateMissingPrerequisites` to permit creation of a missing skipped Service Group, `-Force` for the documented mutable-property updates, `-ContinueOnResourceError` for independent member/classification errors, `-MaxConcurrency 4` for bounded membership PUT submission, and `-OutputPath ./irm-summary.json` for a machine-readable result.
+Use `-CreateMissingPrerequisites` to permit creation of a missing skipped Service Group, `-Force` for the documented mutable-property updates, `-ContinueOnResourceError` for independent membership errors, `-MaxConcurrency 4` for bounded membership PUT submission, and `-OutputPath ./irm-summary.json` for a machine-readable result. Individual authenticated HTTP calls are bounded by `-ArmRequestTimeoutSeconds` (default `120`), while asynchronous ARM operations are bounded separately by `-OperationTimeoutSeconds` (default `1800`). ARM `403 AuthorizationFailed` and `LinkedAuthorizationFailed` responses are retried with bounded exponential backoff for RBAC and linked-scope propagation; tune this with `-AuthorizationRetryCount` (default `6`, `0` disables retries) and `-AuthorizationRetryDelaySeconds` (default `10`, capped at 60 seconds per delay). Service Group prerequisite checks also retry transient `404` responses while the tenant-scoped resource propagates; tune this independently with `-ResourcePropagationRetryCount` and `-ResourcePropagationRetryDelaySeconds`.
 
 ## Operation mapping
 
@@ -77,29 +80,34 @@ Use `-CreateMissingPrerequisites` to permit creation of a missing skipped Servic
 | Membership | `{resourceId}/providers/Microsoft.Relationships/serviceGroupMember/{hash}` | PUT | `2023-09-01-preview` | Deterministic name; GET and compare `targetId` | LRO then GET |
 | UsagePlan | `/subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.AzureResilienceManagement/usagePlans/{name}` | PUT | `2026-08-31-preview` | GET; require Standard and matching location | LRO then GET |
 | Enrollment | `{usagePlanId}/enrollments/{name}` | PUT | `2026-08-31-preview` | GET and compare `serviceGroupId` | LRO then GET |
-| GoalAssignment | `{serviceGroupId}/providers/Microsoft.AzureResilienceManagement/goalAssignments/{name}` | PUT | `2026-09-30-preview` | GET and compare zonal-only intent | LRO then GET |
+| GoalAssignment | `{serviceGroupId}/providers/Microsoft.AzureResilienceManagement/goalAssignments/{name}` | PUT | `2026-08-31-preview` | GET and compare zonal-only intent | LRO then GET |
 | Drill | `{serviceGroupId}/providers/Microsoft.AzureResilienceManagement/drills/{name}` | PUT | `2026-06-01-preview` | GET; require Zonal and SystemAssigned | LRO then GET |
-| DrillResources | `{drillId}/addOrUpdateResources` | POST | `2026-06-01-preview` | List Drill Resources and classify desired state | LRO then list/compare |
 
-## Native fault selection
+## Add resources to the drill
 
-The support map uses canonical types for VMs, VMSS, AKS, PostgreSQL/MySQL flexible servers, SQL databases, Load Balancer, Azure Cache for Redis, and App Service. IRM's API marks `defaultFault` read-only and Add/Update Resources accepts a Drill Resource ID. The script therefore reads each generated Drill Resource, requires an official system-provided `defaultFault.faultUrn`, and submits only the Drill Resource ID to select that default. A supported type without a returned native fault is `Unresolved`; no display-name-to-URN inference or custom runbook is used.
+After the script creates the drill:
+
+1. Open the drill in the Azure portal.
+2. Use the portal workflow to add the relevant Service Group resources to the drill.
+3. Review and apply the role assignments presented by the portal.
+
+The portal automatically handles the role assignments needed for the selected drill resources. Resource inclusion is intentionally outside the supported scripted workflow.
 
 ## Troubleshooting
 
 - `Prerequisite failed`: create or grant access to the named object, or use `-CreateMissingPrerequisites` where supported.
-- `AuthorizationFailed`/`Forbidden`: use the request ID in the error and verify access at tenant, Service Group, member, subscription, and resource-group scopes.
+- `AuthorizationFailed` or `LinkedAuthorizationFailed`: the script waits up to six retries (250 seconds by default) for authorization propagation. If it still fails, use the request ID to verify access at both the requested scope and the linked Service Group scope, then refresh the context with `Disconnect-AzAccount` and `Connect-AzAccount`.
+- Service Group `does not exist or did not become visible`: the script waits up to six retries (250 seconds by default) for tenant-scoped resource visibility. Increase `-ResourcePropagationRetryCount` only when Service Group GET requests eventually succeed in the same tenant.
+- `Forbidden`: this is not treated as a propagation error; verify access at tenant, Service Group, member, subscription, and resource-group scopes.
+- `MissingSubscription` while polling a Service Group operation: update to the current script. Absolute ARM operation URLs must be sent through `Invoke-AzRestMethod -Uri`, not `-Path`.
 - Provider warning: register it explicitly or rerun with `-RegisterMissingProviders` after approval.
-- LRO timeout: increase `-OperationTimeoutSeconds`; the script honors `Retry-After` and bounded exponential backoff.
+- Request timeout: increase `-ArmRequestTimeoutSeconds` if an individual ARM HTTP call consistently needs more than 120 seconds.
 - Membership conflict: inspect the deterministic relationship and remove or reconcile the conflicting target manually.
-- `Unresolved` drill resource: wait for IRM discovery, verify the support matrix and returned `defaultFault`, then rerun.
 
 ## Assumptions and preview details
 
-- The cited `2026-09-30-preview` specification and example are available. Goal templates are removed in that version; `requireZonalResiliency = true` is the required direct intent.
-- The drill OpenAPI allows `SystemAssigned`, but its maximum-set example demonstrates user-assigned identities. This script uses the common ARM managed-identity schema and fails verification if the service does not retain `SystemAssigned`.
-- `defaultFault` is read-only. Fault URNs are discovered from the API response and intentionally not hard-coded.
-- The Add/Update Resources API operates on generated Drill Resource IDs, not member ARM IDs. IRM must finish discovering these resources before Stage 7.
-- Preview behavior may require additional RBAC documented by the service. This script reports prerequisites and does not create role assignments.
+- Goal assignments use API `2026-08-31-preview`; `requireZonalResiliency = true` expresses the required direct intent.
+- The drill and its internal Chaos, recovery-plan, and monitoring resources use system-assigned identities. The script fails verification if the service does not retain `SystemAssigned` on the drill.
+- Drill Resource inclusion and its required role assignments are completed through the Azure portal after the scripted `Drill` stage.
 
 References: [Service Group quickstart](https://learn.microsoft.com/azure/governance/service-groups/create-service-group-rest-api), [Azure REST API specifications](https://github.com/Azure/azure-rest-api-specs/tree/main/specification/azureresiliencemanagement/resource-manager/Microsoft.AzureResilienceManagement/AzureResilienceManagement).

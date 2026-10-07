@@ -29,11 +29,20 @@ param(
     [ValidateRange(1, 300)]
     [int]$MaximumPollDelaySeconds = 30,
 
+    [ValidateRange(10, 600)]
+    [int]$ArmRequestTimeoutSeconds = 120,
+
     [ValidateRange(0, 10)]
     [int]$AuthorizationRetryCount = 6,
 
     [ValidateRange(1, 300)]
     [int]$AuthorizationRetryDelaySeconds = 10,
+
+    [ValidateRange(0, 10)]
+    [int]$ResourcePropagationRetryCount = 6,
+
+    [ValidateRange(1, 300)]
+    [int]$ResourcePropagationRetryDelaySeconds = 10,
 
     [string]$OutputPath
 )
@@ -169,6 +178,8 @@ function Invoke-ArmWebRequest {
         Authentication = 'Bearer'
         Token = $accessToken.Token
         SkipHttpErrorCheck = $true
+        ConnectionTimeoutSeconds = [math]::Min(30, $ArmRequestTimeoutSeconds)
+        OperationTimeoutSeconds = $ArmRequestTimeoutSeconds
         ErrorAction = 'Stop'
     }
     if ($null -ne $Payload) {
@@ -214,9 +225,10 @@ function Invoke-ArmRequest {
                 return [pscustomobject]@{ StatusCode = $statusCode; Body = $responseBody; Headers = $raw.Headers; NotFound = $false; Path = $requestPath }
             }
             $detail = Get-ArmErrorDetail -Body $responseBody -Headers $raw.Headers -StatusCode $statusCode
-            if ($statusCode -eq 403 -and $detail.Code -ieq 'AuthorizationFailed' -and $attempt -lt $AuthorizationRetryCount) {
+            $isAuthorizationPropagationError = $statusCode -eq 403 -and $detail.Code -iin @('AuthorizationFailed', 'LinkedAuthorizationFailed')
+            if ($isAuthorizationPropagationError -and $attempt -lt $AuthorizationRetryCount) {
                 $delay = [math]::Min(60, $AuthorizationRetryDelaySeconds * [math]::Pow(2, $attempt))
-                Write-Warning "ARM authorization has not propagated or access is insufficient; retrying in $delay second(s) (attempt $($attempt + 1) of $AuthorizationRetryCount)."
+                Write-Warning "ARM authorization for this scope or a linked scope has not propagated or access is insufficient; retrying in $delay second(s) (attempt $($attempt + 1) of $AuthorizationRetryCount)."
                 Start-Sleep -Seconds $delay
                 continue
             }
@@ -228,8 +240,8 @@ function Invoke-ArmRequest {
                 continue
             }
             $details = ConvertTo-ArmErrorDetailsJson -Details $detail.Details
-            if ($statusCode -eq 403 -and $detail.Code -ieq 'AuthorizationFailed') {
-                throw "ARM $Method failed after $($attempt + 1) authorization attempt(s): HTTP $statusCode; code=$($detail.Code); message=$($detail.Message); target=$($detail.Target); details=$details; requestId=$($detail.CorrelationId). RBAC propagation may still be pending; verify the role assignment and refresh the Azure context before retrying."
+            if ($isAuthorizationPropagationError) {
+                throw "ARM $Method failed after $($attempt + 1) authorization attempt(s): HTTP $statusCode; code=$($detail.Code); message=$($detail.Message); target=$($detail.Target); details=$details; requestId=$($detail.CorrelationId). Authorization propagation may still be pending; verify access at both the requested and linked scopes, then refresh the Azure context before retrying."
             }
             throw "ARM $Method failed: HTTP $statusCode; code=$($detail.Code); message=$($detail.Message); target=$($detail.Target); details=$details; requestId=$($detail.CorrelationId)"
         }
@@ -254,13 +266,17 @@ function Wait-ArmOperation {
         [int]$MaximumDelaySeconds = $MaximumPollDelaySeconds
     )
     $operationUri = Get-ResponseHeader -Headers $Headers -Name @('Azure-AsyncOperation', 'Operation-Location', 'Location')
-    if ([string]::IsNullOrWhiteSpace($operationUri)) { return $null }
+    if ([string]::IsNullOrWhiteSpace($operationUri)) {
+        Write-Information 'ARM request completed without an asynchronous operation URL.' -InformationAction Continue
+        return $null
+    }
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $delay = $InitialDelaySeconds
     while ($stopwatch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
         $response = Invoke-ArmRequest -Method GET -Path $operationUri -ApiVersion $null -RetryCount 3
         $state = if ($response.Body.status) { [string]$response.Body.status } elseif ($response.Body.properties.provisioningState) { [string]$response.Body.properties.provisioningState } else { 'Succeeded' }
         Write-Verbose "ARM operation state: $state"
+        Write-Information "ARM operation state: $state (elapsed $([math]::Round($stopwatch.Elapsed.TotalSeconds))s; timeout ${TimeoutSeconds}s)." -InformationAction Continue
         if ($state -ieq 'Succeeded') { return $response.Body }
         if ($state -in @('Failed', 'Canceled', 'Cancelled')) {
             $detail = Get-ArmErrorDetail -Body $response.Body -Headers $response.Headers -StatusCode $response.StatusCode
@@ -272,7 +288,7 @@ function Wait-ArmOperation {
         Start-Sleep -Seconds $sleepSeconds
         $delay = [math]::Min($MaximumDelaySeconds, [math]::Max($delay + 1, $delay * 2))
     }
-    throw "ARM operation exceeded the configured timeout of $TimeoutSeconds seconds."
+    throw [System.TimeoutException]::new("ARM operation exceeded the configured timeout of $TimeoutSeconds seconds.")
 }
 
 function Get-ArmResource {
@@ -283,9 +299,32 @@ function Get-ArmResource {
 
 function Test-ArmResourceExists {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$ResourceId, [Parameter(Mandatory)][string]$ApiVersion)
-    $response = Get-ArmResource -ResourceId $ResourceId -ApiVersion $ApiVersion -AllowNotFound
-    return -not $response.NotFound
+    param(
+        [Parameter(Mandatory)][string]$ResourceId,
+        [Parameter(Mandatory)][string]$ApiVersion,
+        [ValidateRange(0, 10)][int]$RetryNotFoundCount = 0,
+        [ValidateRange(1, 300)][int]$RetryDelaySeconds = 10
+    )
+    for ($attempt = 0; $attempt -le $RetryNotFoundCount; $attempt++) {
+        $response = Get-ArmResource -ResourceId $ResourceId -ApiVersion $ApiVersion -AllowNotFound
+        if (-not $response.NotFound) { return $true }
+        if ($attempt -lt $RetryNotFoundCount) {
+            $delay = [math]::Min(60, $RetryDelaySeconds * [math]::Pow(2, $attempt))
+            Write-Warning "ARM resource '$ResourceId' is not visible yet; retrying in $delay second(s) (attempt $($attempt + 1) of $RetryNotFoundCount)."
+            Start-Sleep -Seconds $delay
+        }
+    }
+    return $false
+}
+
+function Test-ServiceGroupExists {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$ResourceId)
+    Test-ArmResourceExists `
+        -ResourceId $ResourceId `
+        -ApiVersion $script:ApiVersions.ServiceGroup `
+        -RetryNotFoundCount $ResourcePropagationRetryCount `
+        -RetryDelaySeconds $ResourcePropagationRetryDelaySeconds
 }
 
 function Assert-Prerequisite {
@@ -413,7 +452,7 @@ function Invoke-MembershipStage {
     [CmdletBinding(SupportsShouldProcess)]
     param($Config, [string]$ServiceGroupResourceId)
     $started = Get-Date
-    Assert-Prerequisite (Test-ArmResourceExists $ServiceGroupResourceId $script:ApiVersions.ServiceGroup) "Service Group '$ServiceGroupResourceId' does not exist."
+    Assert-Prerequisite (Test-ServiceGroupExists $ServiceGroupResourceId) "Service Group '$ServiceGroupResourceId' does not exist or did not become visible after $ResourcePropagationRetryCount propagation retries."
     $resources = Get-ValidatedResources -Config $Config
     $added = [Collections.Generic.List[string]]::new(); $existingIds = [Collections.Generic.List[string]]::new(); $failed = [Collections.Generic.List[object]]::new(); $pending = [Collections.Generic.List[object]]::new()
     foreach ($resource in $resources.Valid) {
@@ -497,7 +536,7 @@ function Invoke-EnrollmentStage {
     [CmdletBinding(SupportsShouldProcess)] param($Config, [string]$ServiceGroupResourceId, [string]$UsagePlanResourceId)
     $started = Get-Date; Assert-ArmName $Config.enrollment.name 'Enrollment name'
     Assert-Prerequisite (Test-ArmResourceExists $UsagePlanResourceId $script:ApiVersions.UsagePlan) "Usage Plan '$UsagePlanResourceId' does not exist."
-    Assert-Prerequisite (Test-ArmResourceExists $ServiceGroupResourceId $script:ApiVersions.ServiceGroup) "Service Group '$ServiceGroupResourceId' does not exist."
+    Assert-Prerequisite (Test-ServiceGroupExists $ServiceGroupResourceId) "Service Group '$ServiceGroupResourceId' does not exist or did not become visible after $ResourcePropagationRetryCount propagation retries."
     $id = "$UsagePlanResourceId/enrollments/$([uri]::EscapeDataString($Config.enrollment.name))"
     $existing = Get-ArmResource $id $script:ApiVersions.Enrollment -AllowNotFound
     if (-not $existing.NotFound) {
@@ -511,7 +550,7 @@ function Invoke-EnrollmentStage {
 function Invoke-GoalAssignmentStage {
     [CmdletBinding(SupportsShouldProcess)] param($Config, [string]$ServiceGroupResourceId)
     $started = Get-Date; Assert-ArmName $Config.goalAssignment.name 'Goal Assignment name'
-    Assert-Prerequisite (Test-ArmResourceExists $ServiceGroupResourceId $script:ApiVersions.ServiceGroup) "Service Group '$ServiceGroupResourceId' does not exist."
+    Assert-Prerequisite (Test-ServiceGroupExists $ServiceGroupResourceId) "Service Group '$ServiceGroupResourceId' does not exist or did not become visible after $ResourcePropagationRetryCount propagation retries."
     $id = "$ServiceGroupResourceId/providers/Microsoft.AzureResilienceManagement/goalAssignments/$([uri]::EscapeDataString($Config.goalAssignment.name))"
     $existing = Get-ArmResource $id $script:ApiVersions.GoalAssignment -AllowNotFound
     if (-not $existing.NotFound -and $existing.Body.properties.requireZonalResiliency -eq $true) { return New-StageResult GoalAssignment Succeeded $id Reused $started $null }
@@ -573,12 +612,43 @@ function Get-AllArmPages {
     return @($items)
 }
 
+function Assert-DrillResourcesConverged {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object[]]$Classifications,
+        [Parameter(Mandatory)][object[]]$VerifiedResources
+    )
+    $verifiedById = @{}
+    foreach ($item in $VerifiedResources) { $verifiedById[[string]$item.id.ToLowerInvariant()] = $item }
+    foreach ($classification in $Classifications | Where-Object Status -in @('Included', 'Excluded')) {
+        if (-not $classification.DrillResourceId -or -not $verifiedById.ContainsKey($classification.DrillResourceId.ToLowerInvariant())) {
+            throw "Drill Resource verification failed for '$($classification.ResourceId)': the API did not return the expected Drill Resource."
+        }
+        $actual = $verifiedById[$classification.DrillResourceId.ToLowerInvariant()]
+        $inclusionStateProperty = $actual.properties.PSObject.Properties['inclusionState']
+        $provisioningStateProperty = $actual.properties.PSObject.Properties['provisioningState']
+        $attentionReasonProperty = $actual.properties.PSObject.Properties['attentionReason']
+        $resourceStateProperty = if ($attentionReasonProperty -and $attentionReasonProperty.Value) { $attentionReasonProperty.Value.PSObject.Properties['resourceState'] } else { $null }
+        $inclusionState = if ($inclusionStateProperty) { [string]$inclusionStateProperty.Value } else { $null }
+        $provisioningState = if ($provisioningStateProperty) { [string]$provisioningStateProperty.Value } else { $null }
+        $resourceState = if ($resourceStateProperty) { @($resourceStateProperty.Value) -join ', ' } else { $null }
+        $stateDetail = "inclusionState='$inclusionState'; provisioningState='$provisioningState'; resourceState='$resourceState'"
+        if ($classification.Status -eq 'Included') {
+            if ($inclusionState -notmatch '(?i)include') { throw "Expected '$($classification.ResourceId)' to be included; $stateDetail." }
+            if ([string]$actual.properties.faultProperties.defaultFault.faultUrn -ine $classification.FaultUrn) { throw "Default fault verification failed for '$($classification.ResourceId)'." }
+        }
+        elseif ($inclusionState -notmatch '(?i)exclude') { throw "Expected '$($classification.ResourceId)' to be excluded; $stateDetail." }
+    }
+}
+
 function Invoke-DrillResourcesStage {
     [CmdletBinding(SupportsShouldProcess)] param($Config, [string]$DrillResourceId)
     $started = Get-Date
     Assert-Prerequisite (Test-ArmResourceExists $DrillResourceId $script:ApiVersions.Drill) "Drill '$DrillResourceId' does not exist."
     $resources = if ($script:MembershipSummary) { $script:MembershipSummary.ValidResources } else { (Get-ValidatedResources $Config).Valid }
+    Write-Information "Discovering Drill Resources for $(@($resources).Count) configured resource(s)." -InformationAction Continue
     $drillResources = Get-AllArmPages "$DrillResourceId/drillResources" $script:ApiVersions.Drill
+    Write-Information "Discovered $(@($drillResources).Count) Drill Resource record(s)." -InformationAction Continue
     $byResourceId = @{}; foreach ($item in $drillResources) { $byResourceId[[string]$item.properties.resourceId.ToLowerInvariant()] = $item }
     $classifications = foreach ($resource in $resources) { Get-DrillResourceClassification $resource $byResourceId[[string]$resource.ResourceId.ToLowerInvariant()] }
     $unresolved = @($classifications | Where-Object Status -eq 'Unresolved')
@@ -588,18 +658,27 @@ function Invoke-DrillResourcesStage {
     $body = @{ faultDurationInMin = 0; forceInclusionAndUpdate = 'Disable'; resourceLists = @{ includeResources = $include; excludeResources = $exclude; updateResources = @() } }
     if ($PSCmdlet.ShouldProcess($DrillResourceId, 'Converge drill resource inclusion and native default faults')) {
         $requestHeaders = @{ 'operation-id' = [guid]::NewGuid().ToString('D') }
+        Write-Information "Submitting Drill Resources action $($requestHeaders['operation-id']) with $($include.Count) inclusion(s) and $($exclude.Count) exclusion(s)." -InformationAction Continue
         $response = Invoke-ArmRequest -Method POST -Path "$DrillResourceId/addOrUpdateResources" -ApiVersion $script:ApiVersions.Drill -Body $body -RequestHeaders $requestHeaders
-        Wait-ArmOperation $response.Headers | Out-Null
+        Write-Information "Drill Resources action returned HTTP $($response.StatusCode); waiting for completion when asynchronous." -InformationAction Continue
+        $operationTimedOut = $false
+        try {
+            Wait-ArmOperation $response.Headers | Out-Null
+        }
+        catch [System.TimeoutException] {
+            $operationTimedOut = $true
+            Write-Warning "$($_.Exception.Message) Performing final Drill Resource state verification because the server-side operation may have completed despite stale polling."
+        }
+        Write-Information 'Verifying Drill Resources state.' -InformationAction Continue
         $verified = Get-AllArmPages "$DrillResourceId/drillResources" $script:ApiVersions.Drill
-        $verifiedById = @{}; foreach ($item in $verified) { $verifiedById[[string]$item.id.ToLowerInvariant()] = $item }
-        foreach ($classification in $classifications | Where-Object Status -in @('Included', 'Excluded')) {
-            if (-not $classification.DrillResourceId -or -not $verifiedById.ContainsKey($classification.DrillResourceId.ToLowerInvariant())) { throw "Drill Resource verification failed for '$($classification.ResourceId)'." }
-            $actual = $verifiedById[$classification.DrillResourceId.ToLowerInvariant()]
-            if ($classification.Status -eq 'Included') {
-                if ([string]$actual.properties.inclusionState -notmatch '(?i)include') { throw "Expected '$($classification.ResourceId)' to be included; API returned '$($actual.properties.inclusionState)'." }
-                if ([string]$actual.properties.faultProperties.defaultFault.faultUrn -ine $classification.FaultUrn) { throw "Default fault verification failed for '$($classification.ResourceId)'." }
+        try {
+            Assert-DrillResourcesConverged -Classifications $classifications -VerifiedResources $verified
+        }
+        catch {
+            if ($operationTimedOut) {
+                throw "Drill Resources operation timed out and final state verification did not converge. $($_.Exception.Message) Resolve the reported Drill RBAC/readiness issue before retrying, or increase -OperationTimeoutSeconds if the service is still making progress."
             }
-            elseif ([string]$actual.properties.inclusionState -notmatch '(?i)exclude') { throw "Expected '$($classification.ResourceId)' to be excluded; API returned '$($actual.properties.inclusionState)'." }
+            throw
         }
     }
     $script:ClassificationSummary = @($classifications)
@@ -650,7 +729,7 @@ function Assert-SkippedStagePrerequisites {
         }
         return
     }
-    Assert-Prerequisite (Test-ArmResourceExists $ServiceGroupId $script:ApiVersions.ServiceGroup) "Skipped Service Group '$ServiceGroupId' does not exist."
+    Assert-Prerequisite (Test-ServiceGroupExists $ServiceGroupId) "Skipped Service Group '$ServiceGroupId' does not exist or did not become visible after $ResourcePropagationRetryCount propagation retries."
     if ($priorStages -contains 'Membership') {
         $resources = Get-ValidatedResources $Config
         Assert-Prerequisite ($resources.Invalid.Count -eq 0) 'One or more configured resources are invalid or inaccessible.'
