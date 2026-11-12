@@ -1,4 +1,4 @@
-# Pre-requisites to use Regional Resiliency Preview in Azure Infrastructure Resiliency Manager
+# Pre-requisites to use Regional Resiliency Preview in Azure Infrastructure Resiliency Manager 
 
 1. Ensure you have **signed up** for the preview using [this form](https://forms.cloud.microsoft/r/9jpNsT75PY). You will receive an email notification from the product group once you are enrolled, along with instructions on how to access the preview.
 
