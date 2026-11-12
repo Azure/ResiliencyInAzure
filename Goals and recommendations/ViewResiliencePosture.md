@@ -1,4 +1,4 @@
-<img width="229" height="62" alt="image" src="https://github.com/user-attachments/assets/8e37cbeb-b743-40c1-95eb-7818279c78ba" /># How to view the Resiliency Posture of your Service Group
+# How to view the Resiliency Posture of your Service Group
 
 This article explains how to interpret the **regional resiliency insights view** of your service group in Resiliency experiences. It covers key concepts, supported scenarios, and how to **exclude or manually attest resources** to improve the accuracy of your resilience posture and receive more targeted recommendations.
 
@@ -104,7 +104,7 @@ Over time, there might be changes to your service group, such as resources being
 The following table lists the Azure-supported solutions recognized by Resiliency service for each resource type. For those resources not in the list, you can still include them in the Service Group and the associated Recovery Plans and Drills and bring your own custom scripts to orchestrate recovery and bring your own fault injection scripts. 
 
 | **Resource Type**       | **Detected Solution**                                  | ** Resource Category ** |
-|-------------------------|--------------------------------------------------------|
+|-------------------------|--------------------------------------------------------| ----------------------- |
 | Azure VM                | Azure Site Recovery with regional disaster recovery (or) Manual attestation     | Stateful |
 | Azure Cosmos DB         | Azure Cosmos DB Multi-region Replication | Stateful |
 | Azure Storage Account   | Geo-redundant storage / Geo-zone-redundant storage / Read-access geo-zone-redundant storage / Read-access geo-redundant storage | Stateful |
