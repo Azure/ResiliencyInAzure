@@ -1,4 +1,4 @@
-# Role Based Access Control (RBAC) Requirements for Resiliency preview scenarios
+# Role Based Access Control (RBAC) Requirements for using Azure Infrastructure Resiliency Manager
 
 The following table lists the RBAC roles that can be leveraged by users to achieve specific resiliency management requirements.
 
@@ -6,7 +6,7 @@ The following table lists the RBAC roles that can be leveraged by users to achie
 
 | Scenario | Roles |
 |----------|--------------------------|
-| Create service group and add/remove member resources in the service group | 1. Microsoft.Relationship/ServiceGroupMember/write access on the resources that are being added to the service group <br> 2. Service Group contributor |
+| Create service group and add/remove member resources in the service group | 1. Service Group Member Relationship Contributor access on the resources that are being added to the service group <br> 2. Service Group contributor |
 
 ## Goals and Recommendations
 
@@ -25,7 +25,7 @@ The following table lists the RBAC roles that can be leveraged by users to achie
 
 | Scenario | Roles |
 |----------|--------------------------|
-| Create and Execute Recovery Plan | 1. **Recovery Contributor**: Required on the Service Group. <br> 2. **Reader Access**: Required on the subscription or resource group that is a member of the Service Group. This ensures that underlying resources can be discovered. <br><br> **For Recovery Plans containing VMs using Azure Site Recovery, the following additional permissions are required:** <br><br> 1. **Service Group Contributor**: Required on the Service Group. <br> 2. **Microsoft.Relationship/ServiceGroupMember/write**: Required on the linked recovery resource (e.g., VM created during failover) to add the new VM to the Service Group. <br> 3. **Site Recovery Operator**: Required on the Recovery Services vault used by the VM. This permission must be assigned to the managed identity of the Recovery Plan. <br><br> **For users utilizing custom runbooks in the Recovery Plan, the following additional permissions are required:** <br><br> 1. **Automation Job Operator**: Required on the associated Automation Account. <br><br> **For enabling zone redundancy on resources, the following additional permissions are required:** <br><br> 1. **Contributor Access**: Required on resources to enable zone redundancy before creating and executing the Recovery Plan.|
+| Create and Execute Recovery Plan | 1. **Azure Resilience Management Recovery Contributor**: Required on the Service Group. <br> 2. **Reader Access**: Required on the subscriptions or resource groups or resources that are a member of the Service Group. This ensures that underlying resources can be discovered. <br><br> **The managed identity associated with the recovery plan must have the following roles depending on the resources in the plan:** <br><br> 1. **Service Group Member Relationship Contributor**: Required on the Resource Group where the linked recovery resource would be created (e.g., VM created during failover) to add the new VM to the Service Group. <br> 3. **Site Recovery Operator**: Required on the Recovery Services vault used by the VM. <br> 4.  **For users utilizing custom runbooks in the Recovery Plan, the following additional permissions are required:** <br><br> 1. **Automation Job Operator**: Required on the associated Automation Account. <br> ||
 
 ## Drills
 
