@@ -17,7 +17,7 @@ Sign up for Regional Resiliency preview via [this form](https://forms.cloud.micr
 
 ## Use Regional Resiliency preview portal URL
 
-Once enrolled, you will need to use the following preview portal URL: [https://aka.ms/resiliencyInAzure/gatedPreview](https://aka.ms/AzureResiliency/regionalpreview) to access the regional resiliency capabilities in this preview.
+Once enrolled, you will need to use the following preview portal URL: [https://aka.ms/AzureResiliency/regionalpreview](https://aka.ms/AzureResiliency/regionalpreview) to access the regional resiliency capabilities in this preview.
 
 ## Get started
 
