@@ -1,25 +1,27 @@
-# Resiliency in Azure (preview)
+# Regional Resiliency (Preview) in Azure Infrastructure Resiliency Manager
 
-Resiliency in Azure (preview) is a self-serve product experience designed to help enterprises define, validate, and achieve their applications' resiliency goals in Azure.
+[Azure Infrastructure Resiliency Manager](https://learn.microsoft.com/en-us/azure/resiliency/infrastructure-resiliency-manager-overview) is a self-serve product experience designed to help enterprises define, validate, and achieve their applications' resiliency goals in Azure.
 
-With this tool, you can:
+With this product, you can:
 
 - Set resiliency goals for your applications
 - Receive detailed recommendations to meet your goals
 - Review summary of resilience posture across your Azure estate from a single pane of glass
 - Run simulated outage drills to validate outage readiness for your applications
 
-## Sign up for preview
+Resiliency Manager is now Generally Available for Zonal Resiliency scenarios and the Regional Resiliency scenarios are available in Private Preview. 
 
-Sign up for the preview via [this form](https://forms.office.com/r/hzN515nbM9). You will receive an email notification once you are enrolled for the preview.
+## Sign up for Regional Resiliency preview
 
-## Use preview portal URL
+Sign up for Regional Resiliency preview via [this form](https://forms.cloud.microsoft/r/9jpNsT75PY) and we will reach out to you once it is enabled for your tenant.
 
-Once enrolled, you will need to use the following preview portal URL: https://aka.ms/resiliencyInAzure/gatedPreview to acess the capabilities in this preview.
+## Use Regional Resiliency preview portal URL
+
+Once enrolled, you will need to use the following preview portal URL: [https://aka.ms/resiliencyInAzure/gatedPreview](https://aka.ms/AzureResiliency/regionalpreview) to access the regional resiliency capabilities in this preview.
 
 ## Get started
 
-Use the below quick links to start testing out various scenarios that are part of the preview. It is recommended to start with the 'Review pre-requisites' page. Each page has a 'Next step' section that will help you sequentially navigate through the remaining sections of the documentation and try out each scenario.
+Use the below quick links to start using various scenarios that are part of the preview. It is recommended to start with the 'Review pre-requisites' page. Each page has a 'Next step' section that will help you sequentially navigate through the remaining sections of the documentation and try out each scenario.
 
 - [Review pre-requisities](Prerequisites.md)
 - [Tutorial 1 - Create a service group to represent your application](CreateServiceGroup.md)
