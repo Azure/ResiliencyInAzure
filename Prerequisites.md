@@ -2,7 +2,7 @@
 
 1. Ensure you have **signed up** for the preview using [this form](https://forms.cloud.microsoft/r/9jpNsT75PY). You will receive an email notification from the product group once you are enrolled, along with instructions on how to access the preview.
 
-2. Ensure that you have **test resources** in your Azure environment that fall under 1 or more of the [supported resource types](./Goals%20and%20recommendations/ViewResiliencePosture.md#Supported-Solutions).
+2. Ensure that you have **test resources** in your Azure environment that fall under one or more of the [supported resource types](./Goals%20and%20recommendations/ViewResiliencePosture.md#Supported-Solutions).
 
 3. Ensure that you have registered **Microsoft.AzureResilienceManagement** resource provider on your tenant. You can run the following commands in PowerShell to register the resource provider on your tenant.
 
