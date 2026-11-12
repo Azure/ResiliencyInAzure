@@ -1,6 +1,6 @@
-# How to view the Resiliency Posture of your Service Group
+<img width="229" height="62" alt="image" src="https://github.com/user-attachments/assets/8e37cbeb-b743-40c1-95eb-7818279c78ba" /># How to view the Resiliency Posture of your Service Group
 
-This article explains how to interpret the **resiliency summary view** of your service group in Resiliency experiences. It covers key concepts, supported scenarios, and how to **exclude or manually attest resources** to improve the accuracy of your resilience posture and receive more targeted recommendations.
+This article explains how to interpret the **regional resiliency insights view** of your service group in Resiliency experiences. It covers key concepts, supported scenarios, and how to **exclude or manually attest resources** to improve the accuracy of your resilience posture and receive more targeted recommendations.
 
 ---
 
@@ -8,11 +8,11 @@ This article explains how to interpret the **resiliency summary view** of your s
 
 Once goals are assigned to your service group, the resilience summary displays three key metrics:
 
-1. **Zone-resilient resources**  
-   Resources configured with an Azure-recommended solution for zone resiliency. You may also manually attest resources using custom solutions not currently detectable by Resiliency service.
+1. **Regionally resilient resources**  
+   Resources configured with an Azure-recommended solution for regional resiliency. You may also manually attest resources using custom solutions not currently detectable by Resiliency service.
 
-2. **Non Zone-resilient resources**  
-   Resources for which no zone resiliency solution has been detected.
+2. **Resources not regionally resilient**  
+   Resources for which no regional resiliency solution has been detected.
 
 3. **Resources not evaluated**  
    Resources excluded from evaluation by the user, or unsupported by Resiliency service.
@@ -21,7 +21,7 @@ The resource count reflects all the resources under the service group, which the
 
 > [!NOTE]
 >
-> - You need **Service Group Reader** permissions to view the zonal resilience summary. You also need Reader access to the **resources** for which zone resiliency status needs to be viewed.
+> - You need **Service Group Reader** permissions to view the regional resilience summary. You also need Reader access to the **resources** for which regional resiliency status needs to be viewed.
 > - Newly added resources are **not automatically refreshed** post goal assignment. [Re-discovery](#rediscovering-resources) is required to include them. This limitation will be addressed in future updates.
 
 ---
@@ -30,18 +30,18 @@ The resource count reflects all the resources under the service group, which the
 
 To view the resiliency posture for your service group:
 
-1. Navigate to your service group in the portal and select **Goals and Recommendations** from the menu under the Resilience section.
-2. If goals have been assigned, a summary view appears showing the distribution of resources based on their zone-resiliency configuration status.
+1. Navigate to your service group in the portal and select **Goals and Recommendations** from the menu under the Resiliency section.
+2. If goals have been assigned, a summary view appears showing the distribution of resources based on their regional resiliency configuration status.
     ![Screenshot of SG resiliency summary tile view](../img/14-SG-Summary-Goals-Assigned.png)
-3. Select the summary tile to view a detailed list of resources in the service group. This includes:
-    - The zonal resiliency solution configured for each resource.
+3. Select the Regional resiliency insights tile to view a detailed list of resources in the service group. This includes:
+    - The regional resiliency solution configured for each resource.
     - Whether each resource is included or excluded from goal evaluation.
     ![Screenshot of SG resource resiliency list view](../img/15-SG-List-Resources.png)
 
 > [!NOTE]
 >
 > - By default, all supported resource types are included in the goal evaluation.
-> - There might be a temporary discrepancy between the number of recommendations shown and the number of non-zonally resilient resources. This is because the recommendations take a few hours to get updated. Use the summary tile to get the latest resilience posture of the service group.
+> - There might be a temporary discrepancy between the number of recommendations shown and the number of non-regionally resilient resources. This is because the recommendations take a few hours to get updated. Use the summary tile to get the latest resilience posture of the service group.
 
 ## Override Resiliency Assessment in Specific Scenarios
 
@@ -51,14 +51,14 @@ In some cases, you may need to override the default resiliency assessment provid
 
 You can choose to exclude resources that are not critical to your workload’s availability.
 **Example:**
-Storage accounts used solely for telemetry logging may not require zone-resiliency and can be excluded from evaluation.
+Storage accounts used solely for telemetry logging may not require regional resiliency and can be excluded from evaluation.
 
 To exclude a non-critical resource, follow the below steps:
 
-1. Navigate to the Resiliency Summary tile and open the resource list view.
+1. Navigate to the Regional resiliency insights tile and open the resource list view.
 2. Choose the resource you want to exclude and click on **Include/Exclude Resources**.
     ![Screenshot of exclude button selection](../img/16-Resource-Exclude-Command-Bar.png)
-3. Set the Target State to **Excluded**. In the Reason field, choose "Zone resiliency not required for this resource".
+3. Set the Target State to **Excluded**. In the Reason field, choose "Regional resiliency not required for this resource".
     ![Screenshot of resource being excluded](../img/17-Resoure-Exclusion-Selection.png)
 4. Once saved, the exemption status for the resource shows up as 'Excluded' and is counted under the 'Not Evaluated' category.
 
@@ -75,13 +75,13 @@ To manually attest a resource, follow the below steps:
 
 1. Navigate to the Resiliency Summary tile in the service group and open the resource list view.
 2. Choose the resource you want to exclude and click on **Include/Exclude Resources**.
-3. Set the Target State to **Excluded**. In the Reason field, choose "Ensuring zone resilience via custom solution".
+3. Set the Target State to **Excluded**. In the Reason field, choose "I am ensuring regional resiliency via custom solution".
     ![Screenshot of resource being manually attested](../img/18-Manual-Attestation-Selection.png)
-4. Once saved, the exemption status for the resource shows up as 'Manually attested' and is counted under the 'Zone resilient' category.
+4. Once saved, the exemption status for the resource shows up as 'Manually attested' and is counted under the 'Regionally resilient' category.
 
 ## Rediscovering resources
 
-Over time, there might be changes to your service group, such as resources being added or deleted. To ensure that your resiliency posture view reflects the latest state of the service group, you can trigger the 'Re-discover resources' action to ensure that new resources are also evaluated for their zone resiliency status.
+Over time, there might be changes to your service group, such as resources being added or deleted. To ensure that your resiliency posture view reflects the latest state of the service group, you can trigger the 'Re-discover resources' action to ensure that new resources are also evaluated for their regional resiliency status.
 
    ![Screenshot of resource rediscovery](../img/19-SG-Resource-Rediscovery.png)
 
@@ -97,33 +97,29 @@ Over time, there might be changes to your service group, such as resources being
 >
 > Recommendation:
 >
-> - Limit who can run rediscovery and ensure those users have access to the full set of service-group resources. This helps keep rediscovery results consistent and complete.
+> - Limit who can run rediscovery and ensure those users have access to the full set of service group resources. This helps keep rediscovery results consistent and complete.
 
 ## Supported Solutions
 
-The following table lists the Azure-supported solutions recognised by Resiliency service for each resource type:
+The following table lists the Azure-supported solutions recognized by Resiliency service for each resource type. For those resources not in the list, you can still include them in the Service Group and the associated Recovery Plans and Drills and bring your own custom scripts to orchestrate recovery and bring your own fault injection scripts. 
 
-| **Resource Type**       | **Detected Solution**                                  |
+| **Resource Type**       | **Detected Solution**                                  | ** Resource Category ** |
 |-------------------------|--------------------------------------------------------|
-| Azure VM                | Azure Site Recovery with zonal disaster recovery (or) Manual attestation     |
-| Azure SQL DB            | Azure SQL DB Zone-redundancy                               |
-| Azure SQL MI            | Azure SQL MI Zone-redundancy|
-| Azure Cosmos DB         | Azure Cosmos DB Zone-redundancy |
-| Azure Database for PostgreSQL - Flexible Server         | Azure PostgreSQL Zone-redundancy |
-| Azure Storage Account   | Zone-redundant storage / Geo-zone-redundant storage / Read-access geo-zone-redundant storage |
-| Azure Service Bus         | Azure Service Bus Zone-redundancy |
-| Azure Kubernetes Services         | Azure Kubernetes Services Zone-redundancy |
-| Azure Container Registry         | Azure Container Registry Zone-redundancy |
-| Azure Load Balancer         | Azure Load Balancer Zone-redundancy |
-| Azure Application Gateway         | Azure App Gateway Zone-redundancy |
-| Azure Firewall         | Azure Firewall Zone-redundancy |
-| Azure IP Address         | Azure IP Address Standard SKU Zone-redundancy |
-| Azure Database for MySQL - Flexible Server         | Azure MySQL Zone-redundancy |
-| Azure Cache for Redis         | Azure Cache for Redis Zone-redundancy |
-| ExpressRoute Gateway         | ExpressRoute Zone Redundant SKU |
-| Azure VMSS                | Azure VMSS Zone Redundant Deployment |
-| Azure App Service Plan                | Azure App Service Plan Zone Redundancy |
-| Azure App Service Environment                | Azure App Service Environment Zone Redundancy 
+| Azure VM                | Azure Site Recovery with regional disaster recovery (or) Manual attestation     | Stateful |
+| Azure Cosmos DB         | Azure Cosmos DB Multi-region Replication | Stateful |
+| Azure Storage Account   | Geo-redundant storage / Geo-zone-redundant storage / Read-access geo-zone-redundant storage / Read-access geo-redundant storage | Stateful |
+| Azure NetApp Files (ANF) | Cross-region replication | Stateful |
+| Azure Service Bus       | Azure Service Bus Geo-Replication | Stateful |
+| Azure Container Registry         | Azure Container Registry Geo-Replication | Stateful |
+| Azure Key Vault | Microsoft-managed replication | Stateful | 
+| Azure Front Door | Regionally resilient by default | Global |
+| Azure Traffic Manager | Regionally resilient by default | Global |
+| Azure Kubernetes Services         | Solution not evaluated | Stateless | 
+| Azure Load Balancer         | Solution not evaluated | Stateless |
+| Azure Application Gateway         | Solution not evaluated | Stateless |
+| Azure Firewall         | Solution not evaluated | Stateless |
+| Azure Public IP Address         | Solution not evaluated | Stateless |
+| Azure App Service                | Solution not evaluated | Stateless |
 
 ## Next steps
 
