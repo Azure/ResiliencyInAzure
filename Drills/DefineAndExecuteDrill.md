@@ -1,4 +1,4 @@
-# Tutorial: Define and Execute a Zone Down Drill to Assess Service Group Resiliency
+# Tutorial: Define and Execute a Regional Resiliency Drill to Assess Service Group Resiliency
 
 ## Introduction
 
@@ -46,7 +46,7 @@ To define a regional resiliency drill, follow the steps below:
         - **Azure Resilience Management Recovery Plan Contributor**, to Create/Execute Recovery Plan
     - Minimum role required at Subscription level (the subscription associated with Automation Account and Chaos experiment) for successful drill execution: **Azure Resilience Management Drill Assets Contributor**, to manage the Subscription associated with Automation Account and Chaos experiment.
     - Minimum roles required in individual resources to perform fault injection: **Azure Resilience Management Drills Target Resource Contributor**, to manage the target resources.
-        - **User Access Administrator** → for assigning roles on the LA subscription and on each of the drill resources’ subscriptions.
+        - **User Access Administrator** → for assigning roles on each of the drill resources’ subscriptions.
             - For role assignments (instead of User Access Administrator required on each subscription of drill resource):
                 - Microsoft.Authorization/roleAssignments/read — Check if role already exists
                 - Microsoft.Authorization/roleAssignments/write — Create role assignment
