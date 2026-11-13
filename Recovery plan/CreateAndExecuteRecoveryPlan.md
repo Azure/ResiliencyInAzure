@@ -24,8 +24,6 @@ Recovery plans are supported for [zonal recovery](https://learn.microsoft.com/en
 
 2. **Configure the Plan**
 
-3. **Finalize the Plan**
-
 ### Step 1: Create the Recovery Plan
 
 1. Navigate to the **Service Group**.
@@ -94,17 +92,13 @@ Groups define the order of resource recovery during failover. Resources in the s
 
    ![Screenshot for Review+update recovery plan](../img/09-Review%20and%20update%20tab.png)
 
-### Step 3: Finalize the Plan
+After successful configuration, the plan will be in the **Ready** state.
 
-The plan remains in the **Under Edit** state until finalized. To finalize:
+9. Run **Plan Readiness Check (On-demand)** action to ensure readiness is validated and succeeds.
 
-1. Ensure no resource is in the **Needs Attention** state. Run readiness checks to resolve issues.
+    ![Screenshot for plan readiness check](../img/08-Group%20order%20tab.png)
 
-2. Once all resources are ready, finalize the plan.
-
-   ![Screenshot for Finalize recovery plan view](../img/10-Finalize%20recovery%20plan%20tab.png)
-
-After successful finalization, the plan will be in the **Ready** state.
+    ![Screenshot for plan readiness check success](../img/08-Group%20order%20tab.png)
 
 ## Create and Order Groups in the Recovery Plan
 
@@ -173,7 +167,6 @@ Resources in the Recovery Plan can have the following inclusion states:
 
 A Recovery Plan can exist in the following states:
 
-- **Under Edit**: The plan is being modified and not finalized.
 - **Ready**: The plan is complete and ready for failover operations.
 - **Warning**: Resources in the plan require attention.
 
