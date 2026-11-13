@@ -18,6 +18,9 @@
 
 5. Once the test resources have been identified, ensure that these have been organized into a **service group** that represents your test application. The link below guides you through the steps to create a service group.
 
+6. To create Recovery Plans and conduct Drills using Resiliency Manager, you must setup a [Usage Plan](https://github.com/Azure/ResiliencyInAzure/blob/main/Create%20Usage%20Plan%20for%20Service%20Group) for the Service Group. During the preview, there will not be any billing or charges even if you associate a Usage Plan. This is however a required step for you to be able to proceed with using Recovery Plans and Drills for Regional resiliency scenarios.
+
 ## Next step
 
 [Create a service group](CreateServiceGroup.md)
+[Create a Usage Plan](https://github.com/Azure/ResiliencyInAzure/blob/main/Create%20Usage%20Plan%20for%20Service%20Group)
