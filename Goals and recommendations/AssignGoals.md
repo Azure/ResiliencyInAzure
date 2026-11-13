@@ -3,7 +3,7 @@
 To understand your service group's resiliency status and receive tailored recommendations, you must first assign goals. This guide walks you through the prerequisites for assigning goals, supported scenarios, and step-by-step instructions for assigning goals in Resiliency in Azure.
 
 > [!NOTE]
-> The current release of Resiliency experiences supports only **zonal resilience** goals. Future updates will include support for **regional resilience** (disaster recovery), **cyber resiliency**, and more.
+> The current release of Resiliency experiences supports only **zonal resilience** and **Regional Resiliency** goals. Future updates will include support for **cyber resiliency**, and more.
 
 ---
 
@@ -29,11 +29,12 @@ Follow these steps to assign goals to your service group:
 1. Navigate to your **Service Group**.
 2. Select the **Goals and recommendations** tab.
 3. Click the **Assign goals** CTA button.
-    ![Screenshot of Service Group Goals page](../img/06-SG-No-Goals.png)
-4. A confirmation blade will appear. Click **Save** to confirm.
-    ![Screenshot of Service Group Goals page](../img/07-SG-Goals-Context-Blade.png)
-5. The system will begin assigning resources as well as discovering resources in the service group. This may take a few minutes to complete.
-6. After discovery completes, you'll see a **summary of your protection status** and any **recommendations**.
+    ![Screenshot of Service Group Goals page](../img/Goals-Assign-regional-goal.png)
+4. Select a criticality tier if not already done during Service Group creation.
+     ![Screenshot of Service Group Goals details page](../img/Goals-assign-details-page.png)
+5. Select **Track the service group for a regional resiliency goal** and choose the applicable RTO and RPO for the application.
+6. The system will begin assigning resources as well as discovering resources in the service group. This may take a few minutes to complete.
+8. After discovery completes, you'll see a **summary of your protection status** and any **recommendations**.
 
 > [!TIP]
 > The next article will help you interpret the protection summary, manage exclusions, and take action on recommendations.
