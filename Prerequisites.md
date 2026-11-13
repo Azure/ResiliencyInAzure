@@ -22,5 +22,5 @@
 
 ## Next step
 
-[Create a service group](CreateServiceGroup.md)
-[Create a Usage Plan](https://github.com/Azure/ResiliencyInAzure/blob/main/Create%20Usage%20Plan%20for%20Service%20Group)
+- [Create a service group](CreateServiceGroup.md)
+- [Create a Usage Plan](https://github.com/Azure/ResiliencyInAzure/blob/main/Create%20Usage%20Plan%20for%20Service%20Group)
