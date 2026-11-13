@@ -32,11 +32,11 @@ To view the resiliency posture for your service group:
 
 1. Navigate to your service group in the portal and select **Goals and Recommendations** from the menu under the Resiliency section.
 2. If goals have been assigned, a summary view appears showing the distribution of resources based on their regional resiliency configuration status.
-    ![Screenshot of SG resiliency summary tile view](../img/14-SG-Summary-Goals-Assigned.png)
+    ![Screenshot of SG resiliency summary tile view](../img/Posture-SG-View.png)
 3. Select the Regional resiliency insights tile to view a detailed list of resources in the service group. This includes:
     - The regional resiliency solution configured for each resource.
     - Whether each resource is included or excluded from goal evaluation.
-    ![Screenshot of SG resource resiliency list view](../img/15-SG-List-Resources.png)
+    ![Screenshot of SG resource resiliency list view](../img/Posture-SG-RR-Details-page.png)
 
 > [!NOTE]
 >
@@ -57,9 +57,9 @@ To exclude a non-critical resource, follow the below steps:
 
 1. Navigate to the Regional resiliency insights tile and open the resource list view.
 2. Choose the resource you want to exclude and click on **Include/Exclude Resources**.
-    ![Screenshot of exclude button selection](../img/16-Resource-Exclude-Command-Bar.png)
+    ![Screenshot of exclude button selection](../img/RR-details-include-exclude-action.png)
 3. Set the Target State to **Excluded**. In the Reason field, choose "Regional resiliency not required for this resource".
-    ![Screenshot of resource being excluded](../img/17-Resoure-Exclusion-Selection.png)
+    ![Screenshot of resource being excluded](../img/RR-Details-Include-exclude-resources.png)
 4. Once saved, the exemption status for the resource shows up as 'Excluded' and is counted under the 'Not Evaluated' category.
 
 > [!NOTE]
@@ -67,23 +67,24 @@ To exclude a non-critical resource, follow the below steps:
 
 ### Scenario 2: Manually Attest Resources
 
-Some resources may be resilient by design, even if Azure cannot automatically detect their configuration.
+Some resources may be resilient by design, even if Azure cannot automatically detect their configuration. In such cases, you can manually mark these VMs as compliant to prevent them from being flagged in recommendations.
+
 **Example:**
-Single-instance virtual machines (VMs) deployed across multiple zones, where resiliency is managed at the application level. In such cases, you can manually mark these VMs as compliant to prevent them from being flagged in recommendations.
+Single-instance virtual machines (VMs) deployed across multiple regions, where resiliency is managed at the application level. 
 
 To manually attest a resource, follow the below steps:
 
 1. Navigate to the Resiliency Summary tile in the service group and open the resource list view.
 2. Choose the resource you want to exclude and click on **Include/Exclude Resources**.
 3. Set the Target State to **Excluded**. In the Reason field, choose "I am ensuring regional resiliency via custom solution".
-    ![Screenshot of resource being manually attested](../img/18-Manual-Attestation-Selection.png)
+    ![Screenshot of resource being manually attested](../img/RR-Details-Include-exclude-resources.png)
 4. Once saved, the exemption status for the resource shows up as 'Manually attested' and is counted under the 'Regionally resilient' category.
 
 ## Rediscovering resources
 
 Over time, there might be changes to your service group, such as resources being added or deleted. To ensure that your resiliency posture view reflects the latest state of the service group, you can trigger the 'Re-discover resources' action to ensure that new resources are also evaluated for their regional resiliency status.
 
-   ![Screenshot of resource rediscovery](../img/19-SG-Resource-Rediscovery.png)
+   ![Screenshot of resource rediscovery](../img/goals-rediscover-resources.png)
 
 > [!IMPORTANT]
 >
