@@ -29,9 +29,8 @@ Use the below quick links to start using various scenarios that are part of the 
 - [Tutorial 3 - Review current protection posture of your service group](./Goals%20and%20recommendations/ViewResiliencePosture.md)
 - [Tutorial 4 - Review recommendations for your service groups](./Goals%20and%20recommendations/Recommendations.md)
 - [Tutorial 5 - Review summary of resilience posture at-scale across your Azure estate](./At%20Scale/ResiliencyOverview.md)
-- [Tutorial 6 - Remediate your non-resilient resources](./Goals%20and%20recommendations/ActOnRecommendations.md)
-- [Tutorial 7 - Create a recovery plan for regional recovery](./Recovery%20plan/CreateAndExecuteRecoveryPlan.md)
-- [Tutorial 8 - Create and run a resiliency drill for your service group](./Drills/DefineAndExecuteDrill.md)
+- [Tutorial 6 - Create a recovery plan for regional recovery](./Recovery%20plan/CreateAndExecuteRecoveryPlan.md)
+- [Tutorial 7 - Create and run a resiliency drill for your service group](./Drills/DefineAndExecuteDrill.md)
 - [Troubleshooting and reporting issues](./Troubleshooting.md)
 - [Frequently asked questions](./FAQ.md)
 
