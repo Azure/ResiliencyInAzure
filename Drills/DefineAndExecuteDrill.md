@@ -2,11 +2,11 @@
 
 ## Introduction
 
-Resiliency in Azure enables you to assess the resiliency of Service Group resources by simulating zone outages on individual resources. This exercise will help evaluate the performance of the cross-zone resiliency solutions enabled for your application resources and also help review the resources that are unlikely to survive an outage and cause application downtime.
+Azure Infrastructure Resiliency manager enables you to assess the resiliency of Service Group resources by simulating [zonal outages](https://learn.microsoft.com/en-us/azure/resiliency/availability-zone-down-drills-about) on individual resources.
 
-A Zone Down Drill template populates the Azure-recommended faults for the supported resource types and also enables you to override them with your own custom logic using custom runbooks. Post fault injection, Drills also enables you to perform Failover and Reprotection of resources configured with Active-Passive solutions through first-class integration with Recovery Plans to measure the maximum downtime that the application is vulnerable to in the face of outages.
+For Regional resiliency drills, you can bring your own custom script to bring down your application on the Primary region or simulate region-down faults using your own scripts. Support for native region-down faults is planned for future releases.
 
-Additionally, integration with metrics monitoring helps measure the health of the Service Group and its resources over the course of Drill operations in real-time.
+Integration with [Azure Health Models](https://learn.microsoft.com/en-us/azure/azure-monitor/health-models/overview) and [Service Level Indicator (SLI)](https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/service-level-indicators-create) metrics in Azure Monitor helps you monitor the health of your application and its resources over the course of Drill operations in real-time.
 
 ## Pre-requisites
 
@@ -22,11 +22,11 @@ Additionally, integration with metrics monitoring helps measure the health of th
 
 ![Chaos Registration Step](../img/42-Chaos-Reg.png)
 
-4. Similarly, ensure that the **Microsoft.Insights** and **Microsoft.OperationalInsights** resource providers are registered in the subscription where you wish to create the monitoring setup for drills.
+4. Similarly, ensure that either Azure Health Model or an SLI is setup and associated with the Drill.
 
 ## Drill Setup
 
-To define a Zone Down simulation drill, follow the steps below:
+To define a regional resiliency drill, follow the steps below:
 
 1. Visit the Service Group for which you want to define a Drill and navigate to Resiliency > Drills.
 
@@ -34,49 +34,36 @@ To define a Zone Down simulation drill, follow the steps below:
 
 2. Click on **Create drill** and input a suitable name for the Drill instance. Post this, select the Subscription and Region that needs to be associated with the Chaos Experiment and Log Analytics Workspace that will be created to perform fault injection and monitoring measurement respectively over the course of the drill. This Subscription and Region need not be related to the Subscriptions and Regions associated with Service Group members.
 
-    ![Screenshot of SG Create Drill Flow](../img/27-Create-Drill-1.png)
+    ![Screenshot of SG Create Drill Flow](../img/Drill-create-basics.png)
 
 3. Then choose between System-assigned and User-assigned identity that will be used to fetch resources of the Service Group and the associated Azure Health Model details securely. The same identity can be used for fault injection by default or alternately, a different identity can be selected. The role assignment type will use Azure built-in roles by default.
     
-    ![Screenshot of Drill MSI selection](../img/28-Create-Drill-MSI-Step.png)
+    ![Screenshot of Drill MSI selection](../img/Drill-create-permissions.png)
 
 4. Ensure that users responsible for drill creation and execution have the required permissions. These permissions are listed below for quick reference:
     - Minimum role required at Service Group level for successful drill execution: 
-        - **SG Drill Contributor**, to Create/Update/Execute Drills (tenant-level resources).  
-        - **Recovery Plan Contributor**, to Create/Execute Recovery Plan
-    - Minimum role required at Subscription level (the subscription associated with Automation Account and Chaos experiment) for successful drill execution: **Drill Assets Contributor**, to manage the Subscription associated with Automation Account and Chaos experiment.
-    - Minimum roles required in individual resources to perform fault injection: **Drill Resource Fault Contributor**, tomanage the target resources.
-    - Minimum roles required to monitor Service Group metrics health during drill execution:
-        - **Log Analytics Contributor + Monitoring Contributor** in the chosen subscription → for creating the monitoring infrastructure (Log analytics workspace, tables, Data Collection Endpoints (DCE), Data Collection Rules (DCR)).
+        - **Azure Resilience Management Drill Contributor**, to Create/Update/Execute Drills (tenant-level resources).  
+        - **Azure Resilience Management Recovery Plan Contributor**, to Create/Execute Recovery Plan
+    - Minimum role required at Subscription level (the subscription associated with Automation Account and Chaos experiment) for successful drill execution: **Azure Resilience Management Drill Assets Contributor**, to manage the Subscription associated with Automation Account and Chaos experiment.
+    - Minimum roles required in individual resources to perform fault injection: **Azure Resilience Management Drills Target Resource Contributor**, to manage the target resources.
         - **User Access Administrator** → for assigning roles on the LA subscription and on each of the drill resources’ subscriptions.
-        - Explicit permissions if assigning granularly: 
-            - For monitoring resource creation (instead of Log Analytics Contributor + Monitoring Contributor):
-                - Microsoft.OperationalInsights/workspaces/read — Read/check LA workspace
-                - Microsoft.OperationalInsights/workspaces/write — Create LA workspace
-                - Microsoft.OperationalInsights/workspaces/tables/read — Read/check custom tables
-                - Microsoft.OperationalInsights/workspaces/tables/write — Create custom tables
-                - Microsoft.Insights/dataCollectionEndpoints/read — Read/check DCE
-                - Microsoft.Insights/dataCollectionEndpoints/write — Create DCE
-                - Microsoft.Insights/dataCollectionRules/read — Read/check DCR
-                - Microsoft.Insights/dataCollectionRules/write — Create DCR
             - For role assignments (instead of User Access Administrator required on each subscription of drill resource):
                 - Microsoft.Authorization/roleAssignments/read — Check if role already exists
                 - Microsoft.Authorization/roleAssignments/write — Create role assignment
 
-5. Upon confirmation, the Drill instance gets created. Note that every Service Group can be associated with a single Drill instance.
+5.Select a Azure Health Model or an SLI and associate with the drill for monitoring the health of the resources and application.
 
-6. Upon creation, review the summary widgets on the Overview page that explain the Drill parameters that need fixing in order to proceed with execution of the Drill.
+![Screenshot of Drill details](../img/Drill-create-monitoring.png)
 
-![Screenshot of Drill details](../img/48-Drill-Identity-1.png)
+6. Upon confirmation, the Drill instance gets created. Note that every Service Group can be associated with a single Regional Drill instance.
 
-Similarly, double-click details and edits on Identity and Permissions can be done using the dedicated blade on the left navigation.
+7. Upon creation, review the summary widgets on the Overview page that explain the Drill parameters that need fixing in order to proceed with execution of the Drill.
 
-![Screenshot of Drill MSI updation](../img/49-Drill-Identity-2.png)
+![Screenshot of Drill details](../img/Drills-overview.png)
+
+Similarly, double-click details and edits on **Identity and Permissions** can be done using the dedicated blade on the left navigation.
 
 7. Next, proceed to review the resources that are included in the Drill. Key points on the resources included in a drill: 
-    1. Resources of the Service Group that have a native zonal resiliency solution are included in the drill by default. These are resources that will qualify for fault injection. 
-    2. If the Service Group has resources such as Virtual Machines configured with Azure Site Recovery that require manual failover, a Recovery Plan needs to be associated with the Service Group to failover the resources in the desired order of recovery post fault injection.
-    3. The reason why a resource is excluded from the drill can be varied. Some of the common reasons include the lack of a native zonal resiliency solution, resource excluded from recovery plan, the service does not support the detection of zonal resiliency solution for this resource type etc.
     
     ![Screenshot of Drill resource exclude page](../img/50-Drill-Exclude.png)
     
