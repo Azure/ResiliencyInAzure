@@ -1,4 +1,4 @@
-# Tutorial: Create and Execute a Recovery Plan for Zonal Resiliency
+# Tutorial: Create and Execute a Recovery Plan for Regional Resiliency
 
 ## Pre-requisites
 
@@ -12,9 +12,9 @@ The Recovery Plan enables efficient and seamless recovery by orchestrating recov
 - Perform readiness checks to detect any drift in your applications, increasing the chances of successful recovery.
 
 > [!NOTE]
-> The Recovery Plan is an orchestrator and does not protect individual resources. To protect resources, configure Azure Site Recovery for VMs or Highly Available (HA) solutions for other resources.
+> The Recovery Plan is an orchestrator and does not protect individual resources. To protect resources, configure the resource specific high availability (HA) or replication solutions, such as Azure Site Recovery for VMs etc.
 
-The scope of the Recovery Plan is limited to **zonal recovery**. Regional recovery is not supported at this time.
+Recovery plans are supported for [zonal recovery](https://learn.microsoft.com/en-us/azure/resiliency/recovery-orchestration-plan-create-configure) and Regional recovery. The focus of this document is regional recovery plans.
 
 ## Recovery Plan Setup
 
@@ -38,7 +38,7 @@ The scope of the Recovery Plan is limited to **zonal recovery**. Regional recove
 
    ![Screenshot for Create recovery plan option](../img/02-Create%20Recovery%20Plan.png)
 
-4. Provide details such as the Plan name and description.
+4. Provide details such as the Plan name, description and Plan Type as **Regional resiliency**.
 
    ![Screenshot for Basics tab during recovery plan creation](../img/03-Basics%20RP%20creation.png)
 
@@ -55,8 +55,8 @@ The scope of the Recovery Plan is limited to **zonal recovery**. Regional recove
 
 Once the Recovery Plan is created, configure it by:
 
-- Adding resources from Service Groups.
-- Managing resource protection.
+- Including and Excluding resources from Service Group into the plan.
+- Managing resource protection, which is about selecting the failover solution.
 - Defining the startup order of resources after recovery.
 - Running readiness checks.
 
@@ -76,19 +76,21 @@ Once the Recovery Plan is created, configure it by:
 
    ![Screenshot for Manage Resources Protection](../img/07-Manage%20Resources%20Protection.png)
 
-   - **Protection Solution**: Solutions like Azure Site Recovery or Zone-redundant storage.
+   - **Protection Solution**: Shows the detected Azure native protection/replication being used for that resource. Solutions like Azure Site Recovery for VMs, Service Bus Geo-Replication etc.
    - **Protection Status**: Indicates whether the resource is protected.
-   - **Active Location**: The region or zone where the resource is currently active.
+   - **Active Location**: The region where the resource is currently active.
    - **Recovery Location**: The disaster recovery or high availability location.
-   - **Inclusion States**: Resources can be marked as Included, Highly Available, Excluded, or Needs Attention.
+   - **Inclusion States**: Resources can be set to Included or Excluded state depending on whether it is required to be failed over. Resources set to Needs Attention must be reviewed and the necessary action shown is to be taken. 
 
 5. Click **Next** to define the **Start Group Order** for resource recovery.
 
+Groups define the order of resource recovery during failover. Resources in the same group fail over in parallel, while groups execute sequentially. Group 2 starts only after all Group 1 resources complete failover. By default, a Default    Group is created.
+
    ![Screenshot for Group Order Tab](../img/08-Group%20order%20tab.png)
 
-6. Click **Next** to configure **Group Actions** for automating actions at the group level.
+7. Click **Next** to configure **Group Actions** for automating actions at the group level.
 
-7. Click **Next** to review the plan in the **Review + Update** tab. After reviewing, click **Update**.
+8. Click **Next** to review the plan in the **Review + Update** tab. After reviewing, click **Update**.
 
    ![Screenshot for Review+update recovery plan](../img/09-Review%20and%20update%20tab.png)
 
@@ -106,7 +108,7 @@ After successful finalization, the plan will be in the **Ready** state.
 
 ## Create and Order Groups in the Recovery Plan
 
-Groups in the Recovery Plan define the order of resource recovery. By default, a **Default Group** is created, and Azure Site Recovery-protected VMs are added to it. You can:
+Groups in the Recovery Plan define the order of resource recovery. By default, a **Default Group** is created. You can:
 
 - Create additional groups.
 - Move resources between groups.
@@ -159,8 +161,8 @@ Automate group-level actions by adding Azure Automation Runbooks as pre-scripts 
 
 Resources in the Recovery Plan can have the following inclusion states:
 
-- **Included**: Resources protected by Azure Site Recovery or custom scripts.
-- **Highly Available**: Resources with high availability configurations.
+- **Included**: Stateful resources protected by Azure Native solutions or stateless resources requiring redeployment of configuration updates using Azure ARM Templates or custom scripts.
+- **Highly Available**: Stateful resources with high availability configurations.
 - **Excluded**: Resources not included in the Recovery Plan.
 - **Needs Attention**: Resources requiring configuration or protection.
 
@@ -185,40 +187,35 @@ You can execute the following operations from the **Execute** dropdown:
 
 ## Supported Resource Types
 
-The following Azure services are supported by the Recovery Plan:
+The following Azure services are supported by the Recovery Plan. Supported means that the protection solutions are detected by Recovery Orchestration service and failover for stateful services is orchestrated by this service. For stateless services, you can associate an ARM template or a custom runbook based script for redeploying or reconfiguring the resource as part of failover. 
 
-1. Azure VM
+> [!NOTE]
+> For resources which are not in the supported list, you can still add a custom runbook script to include the resource in the plan and orchestrate failover using that script.
 
-2. Azure VMSS
+1. Azure VM (Stateful)
 
-3. Azure SQL DB
+2. Azure Cosmos DB (Stateful)
 
-4. Azure SQL MI
+3. Azure Service Bus (Stateful)
 
-5. Azure Cosmos DB
+4. Azure Storage Accounts (Stateful)
 
-6. Azure PostgreSQL-Flexible Server
+5. Azure NetApp Files (Stateful)
 
-7. Azure Service Bus
+6. Azure Container Registry (Stateful)
 
-8. Azure Container Registry
+7. Azure Kubernetes Service (AKS) (Stateless)
 
-9. AKS
+9. Azure Load Balancer (Stateless)
 
-10. Azure Storage Account
+10. Azure App Gateway (Stateless)
 
-11. Azure Load Balancer
+11. Azure Public IP Address (Stateless)
 
-12. Azure App Gateway
+12. Azure Firewall (Stateless)
 
-13. Azure IP Address
+13. App Services (Stateless)
 
-14. Azure Firewall
+14. Azure Front Door (Global) 
 
-15. App Services
-
-16. Express Route
-
-17. Redis Cache
-
-18. MySQL
+15. Azure Traffic Manager (Global)
