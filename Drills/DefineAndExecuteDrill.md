@@ -65,66 +65,20 @@ Similarly, double-click details and edits on **Identity and Permissions** can be
 
 7. Next, proceed to review the resources that are included in the Drill. Key points on the resources included in a drill: 
     
-    ![Screenshot of Drill resource exclude page](../img/50-Drill-Exclude.png)
+    ![Screenshot of Drill resource exclude page](../img/Drill-Resiliency-solutions.png)
     
     4. Any resource that is excluded by default from the drill can be included back by clicking on “View details and include resources” as shown below. Ensure that you click on “Refresh” upon including resources back to the drill to see the updated list:
 
     ![Screenshot of Drill Resource Review](../img/30-Drill-Resources.png)
 
-8. Upon confirming the list of resources to be included in the drill, proceed to the Fault Designer tab to review the faults that need to be applied to the resources. Select any resource and click on "Edit fault" for the same. 
+8. Upon confirming the list of resources to be included in the drill, proceed to the Fault Designer tab to add custom faults that need to be applied to the resources. Select any resource and click on "Edit Fault" for the same. 
 
-    ![Screenshot of Drill Fault Designer](../img/31-Drill-Fault-Designer.png.jpg)
-
-    Supported native zone down faults include:    
-    - **Virtual Machine** - Shuts down the virtual machine
-    - **Virtual Machine Scale Sets** - Shuts down all VMs in the scale set within a single zone
-    - **Azure Kubernetes Service** - Shuts down node pools in a single zone
-    - **Azure Database for PostgreSQL flexible servers** - Triggers a forced failover to switch the server’s active zone.
-    - **Azure Database for MySQL flexible servers** - Triggers a forced failover to switch the server’s active zone
-    - **Azure SQL Database -** Triggers a forced failover to switch the server’s active zone
-    - **Azure Load Balancer** - Disables readiness probes in the selected zone using admin override
-    - **Azure Cache for Redis** - Restarts the primary node of the cache
-    - **App Service** - Stops App Service instances in a single zone.        
+    ![Screenshot of Drill Fault Designer](../img/Drill-fault-designer.png)      
     
     > [!TIP]
-        > For unsupported resource types, use custom scripts powered by Azure Runbooks to define fault logic. Ensure scripts include the following parameters:
-        >
-        > - 'ResourceIds' (string): Comma-separated list of Azure Resource IDs.
-        >
-        > - 'Duration' (int): Duration in minutes.
-        >
-        > - 'TargetZone' (string): Target zone (e.g., az1, az2, az3). <br> The current implementation of custom scripts infra do not support individual resource level response schema (i.e. if the script fails, we cannot detect which resources within it failed). Only if custom Scripts adhere to this response schema, will the service be able to get resource level failure details. Otherwise, all resources acted on by this script will be marked as failed if the script fails:
-        ````json
-        {
-          "Status": "Failed",
-          "ResourceResults": [
-            {
-              "IsSuccess": false,
-              "Error": {
-                "IsRetryable": false,
-                "Details": "Please provide a valid tenant or a valid subscription.",
-                "Message": "Please provide a valid tenant or a valid subscription.",
-                "ErrorCode": "FailedToFaultResource",
-                "Category": "Failed"
-              },
-              "ProcessedAt": "2025-11-04T16:22:25.7161798Z",
-              "Metadata": {
-                "Status": "Failed"
-              },
-              "ProcessingDurationMs": 6833,
-              "ResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/drillTest/providers/Microsoft.DBforPostgreSQL/flexibleServers/test"
-            }
-          ],
-          "SuccessCount": 0,
-          "FailureCount": 1,
-          "ExecutionStartTime": "2025-11-04T16:22:11.8569539Z",
-          "ExecutionEndTime": "2025-11-04T16:22:25.7368318Z",
-          "GlobalError": "All PostgreSQL failover operations failed."
-        }
-        ````
-    Note that faults can be applied in bulk for a given resource type by selecting the resource type and clicking on "Edit fault".
+        > Use custom scripts powered by Azure Runbooks to define fault logic.
 
-![Screenshot of custom fault selection](../img/32-Drill-Custom-Fault-Injection.png)
+Note that faults can be applied in bulk for a given resource type by selecting the resource type and clicking on "Edit fault".
 
 Note that all resources are in "Needs Attention" state by default. Once the fault logic has been defined, select each of these resources and click on "Include and prepare for fault injection". This step proceeds to complete role assignment and target onboarding, which are mandatory steps to perform fault injection. Leverage the hyperlink on "Needs attention" to debug the reason for lack of resource readiness for fault injection.
 
@@ -136,12 +90,12 @@ Any resource that undergoes changes in the Fault Designer will be in "Under edit
 
 Leverage the "Fault duration" input to inject faults for a set duration. The default value is 10 minutes.
 
-9. Once fault design is complete for all resources, review readiness across all summary widgets. "Fix up" on Overview screen can be leveraged to fix any config drifts and to attempt changing "Drill execution readiness" from Not Ready to Ready.
+9. Once fault design is complete for all resources, review readiness across all summary widgets. "Resync and check readiness" on Overview screen can be leveraged to fix any config drifts and to attempt changing "Drill execution readiness" from Not Ready to Ready.
 
     > [!NOTE]
     > Refresh the drill instance after every edit operation.
 
-![Screenshot of Drill MSI selection](../img/34-Drill-Fixup.png.jpg)
+![Screenshot of Drill MSI selection](../img/Drill-check-readiness.png)
 
 ## Drill Execution
 
@@ -156,27 +110,19 @@ Leverage the "Fault duration" input to inject faults for a set duration. The def
 5. Drill execution progress can be tracked through a job as shown below.
 
 ![Screenshot of Drill Run Job](../img/35-Drill-Run-Job.png)
-
-![Screenshot of Drill Run Job Scrolled Down](../img/43-Drill-Execute-Metrics-1.png)
-
-Metrics can be viewed in detail per resource of the Service Group:
-
-![Screenshot of Drill Metrics](../img/44-Drill-Execute-Metrics-2.png)
-
-Clicking on the individual resources above will lead to details on the actual metrics measured per resource and the corresponding thresholds:
-
-![Screenshot of Drill Metrics](../img/45-Drill-Execute-Metrics-3.png)    
   
 Every drill execution job follows the sequence of Fault Injection > Failover > Reprotect > Failover (in reverse direction) > Reprotect (in reverse direction). For a given step, "Retry" operation can be leveraged to re-execute any given operation for a failed resource. "Start" begins the step and "Mark step as complete" ends the step. Once a step, for example, Reprotect is ended, it cannot be retried. 
 
 > [!NOTE]
 > For Failover (Reverse) to select the right resources for failover back from target to source zone, edit the source recovery plan’s resources before failover.
 
-Every drill execution also supports addition of notes during the execution which will get stored as a part of run history of the drill. 
+6. Every drill execution also supports addition of notes during the execution which will get stored as a part of run history of the drill. 
 
 > [!NOTE]
 > Upon adding notes and saving the notes, refresh the job to update the notes. 
 
-Additionally, every execution run should be explicitly ended using “End execution”, which is followed by review of the notes and an attestation of the final status of the Drill as shown below.
+7. Additionally, every execution run should be explicitly ended using “End execution”, which is followed by review of the notes and an attestation of the final status of the Drill as shown below.
 
 ![Screenshot of Drill Execution End](../img/36-Drill-End-Execution.png)
+
+8. You can download the drill report using the **Download report** action on the Drill run details page.
