@@ -38,7 +38,7 @@ Recovery plans are supported for [zonal recovery](https://learn.microsoft.com/en
 
 4. Provide details such as the Plan name, description and Plan Type as **Regional resiliency**.
 
-   ![Screenshot for Basics tab during recovery plan creation](../img/03-Basics%20RP%20creation.png)
+   ![Screenshot for Basics tab during recovery plan creation](../img/Regional-RO-Create.png)
 
 5. [Optional] Select the managed identity to use. By default, the **System Managed Identity** is used. Click **Review + create**.
 
@@ -60,19 +60,15 @@ Once the Recovery Plan is created, configure it by:
 
 #### Steps to Configure the Plan
 
-1. Navigate to the created Recovery Plan. The plan will be in the **Under Edit** state.
+1. Navigate to the created Recovery Plan. 
 
-2. Click the **Configure Plan** tab.
+2. Go to **Configure Plan** section and click **Manage Resource Protection**.
 
-   ![Screenshot for Configure Plan button](../img/05-Configure%20Plan%20button.png)
+   ![Screenshot for Configure Plan button](../img/RO-Plan-Configure.png)
 
-3. Click **Manage resource protection**.
+3. Review the resources in the Service Group and include and configure the failover mechanism using native protection solution, custom runbook script or Azure ARM template for stateless resources:
 
-   ![Screenshot for Configure Plan Tab](../img/06-Configure%20Plan%20Tab.png)
-
-4. Review the resources in the Service Group:
-
-   ![Screenshot for Manage Resources Protection](../img/07-Manage%20Resources%20Protection.png)
+   ![Screenshot for Manage Resources Protection](../img/RO-include-exclude-resources.png)
 
    - **Protection Solution**: Shows the detected Azure native protection/replication being used for that resource. Solutions like Azure Site Recovery for VMs, Service Bus Geo-Replication etc.
    - **Protection Status**: Indicates whether the resource is protected.
@@ -96,9 +92,9 @@ After successful configuration, the plan will be in the **Ready** state.
 
 9. Run **Plan Readiness Check (On-demand)** action to ensure readiness is validated and succeeds.
 
-    ![Screenshot for plan readiness check](../img/08-Group%20order%20tab.png)
+    ![Screenshot for plan readiness check](../img/RO-Plan-Readiness-check.png)
 
-    ![Screenshot for plan readiness check success](../img/08-Group%20order%20tab.png)
+    ![Screenshot for plan readiness check success](../img/RO-Plan-Readiness-Success.png)
 
 ## Create and Order Groups in the Recovery Plan
 
